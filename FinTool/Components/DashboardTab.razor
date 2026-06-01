@@ -132,15 +132,22 @@ else
                     <MudText Typo="Typo.subtitle1" Class="mb-1">Spending by Category</MudText>
                     @if (_donutData.Length > 0)
                     {
-                        <MudChart ChartType="ChartType.Donut"
-                                  InputData="@_donutData"
-                                  InputLabels="@_donutLabels"
-                                  ChartOptions="@_donutOptions"
-                                  @bind-SelectedIndex="_selectedDonutIndex"
-                                  Width="100%" Height="280px" />
-                        <MudText Align="Align.Center" Typo="Typo.subtitle2" Class="mt-2">
-                            @_donutLabels[_selectedDonutIndex]: @Fmt((decimal)_donutData[_selectedDonutIndex])
-                        </MudText>
+                        <div style="position: relative;">
+                            <MudChart ChartType="ChartType.Donut"
+                                      InputData="@_donutData"
+                                      InputLabels="@_donutLabels"
+                                      ChartOptions="@_donutOptions"
+                                      @bind-SelectedIndex="_selectedDonutIndex"
+                                      Width="100%" Height="280px" />
+                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;max-width:120px;">
+                                <div style="font-size:1.1rem;font-weight:600;line-height:1.3">
+                                    @Fmt((decimal)_donutData[_selectedDonutIndex])
+                                </div>
+                                <div style="font-size:0.75rem;opacity:0.7;line-height:1.3;word-break:break-word">
+                                    @_donutLabels[_selectedDonutIndex]
+                                </div>
+                            </div>
+                        </div>
                     }
                     else
                     {
@@ -340,7 +347,7 @@ else
         _donutOptions = new ChartOptions
         {
             ChartPalette = donut.Select(r => r.Color).ToArray(),
-            ShowLegend   = true
+            ShowLegend   = false
         };
 
         // ── Trend: last 6 months, expenses AND revenue ──────────────────
