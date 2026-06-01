@@ -175,6 +175,8 @@ else
                 <MudTh Style="text-align:right">Budget</MudTh>
                 <MudTh Style="text-align:right">Spent</MudTh>
                 <MudTh Style="text-align:right">Remaining</MudTh>
+                <MudTh Style="text-align:right">Txns</MudTh>
+                <MudTh Style="text-align:right">Avg / Txn</MudTh>
                 <MudTh Style="min-width:140px">Usage</MudTh>
             </HeaderContent>
             <RowTemplate>
@@ -201,6 +203,17 @@ else
                         @(rowRem >= 0 ? Fmt(rowRem) : $"−{Fmt(-rowRem)}")
                     </MudText>
                 </MudTd>
+                <MudTd Style="text-align:right">
+                    <MudText Color="@(context.Count > 0 ? Color.Default : Color.Secondary)">
+                        @context.Count
+                    </MudText>
+                </MudTd>
+                <MudTd Style="text-align:right">
+                    @if (context.Count > 0)
+                    {
+                        @Fmt(context.Avg)
+                    }
+                </MudTd>
                 <MudTd>
                     @if (context.Budget > 0)
                     {
@@ -223,6 +236,8 @@ else
                 <HeaderContent>
                     <MudTh>Category</MudTh>
                     <MudTh Style="text-align:right">Amount</MudTh>
+                    <MudTh Style="text-align:right">Txns</MudTh>
+                    <MudTh Style="text-align:right">Avg / Txn</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Category">
@@ -234,6 +249,13 @@ else
                     </MudTd>
                     <MudTd DataLabel="Amount" Style="text-align:right">
                         <MudText Color="Color.Success">@Fmt(context.Amount)</MudText>
+                    </MudTd>
+                    <MudTd Style="text-align:right">@context.Count</MudTd>
+                    <MudTd Style="text-align:right">
+                        @if (context.Count > 0)
+                        {
+                            <MudText Color="Color.Success">@Fmt(context.Avg)</MudText>
+                        }
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -310,11 +332,13 @@ else
             .Where(c => !c.IsIgnored)
             .Select(cat =>
             {
-                var spent = monthTx
+                var txs = monthTx
                     .Where(t => !t.IsRevenue && t.Amount > 0 &&
                                 string.Equals(t.Category, cat.Name, StringComparison.OrdinalIgnoreCase))
-                    .Sum(t => t.Amount);
-                return new CatRow(cat.Name, cat.Color, cat.MonthlyAmount, spent);
+                    .ToList();
+                var spent = txs.Sum(t => t.Amount);
+                var count = txs.Count;
+                return new CatRow(cat.Name, cat.Color, cat.MonthlyAmount, spent, count, count > 0 ? spent / count : 0);
             })
             .OrderByDescending(r => r.Spent)
             .ToList();
@@ -328,17 +352,23 @@ else
             .Where(c => !c.IsIgnored)
             .Select(cat =>
             {
-                var amount = monthTx
+                var txs = monthTx
                     .Where(t => t.IsRevenue &&
                                 string.Equals(t.Category, cat.Name, StringComparison.OrdinalIgnoreCase))
-                    .Sum(t => -t.Amount);
-                return new RevRow(cat.Name, cat.Color, amount);
+                    .ToList();
+                var amount = txs.Sum(t => -t.Amount);
+                var count  = txs.Count;
+                return new RevRow(cat.Name, cat.Color, amount, count, count > 0 ? amount / count : 0);
             })
             .Where(r => r.Amount > 0)
             .ToList();
 
         if (uncategorisedRevenue > 0)
-            _revenueRows.Add(new RevRow("Uncategorised", "#9E9E9E", uncategorisedRevenue));
+        {
+            var uncatCount = monthTx.Count(t => t.IsRevenue && string.IsNullOrEmpty(t.Category));
+            _revenueRows.Add(new RevRow("Uncategorised", "#9E9E9E", uncategorisedRevenue,
+                uncatCount, uncatCount > 0 ? uncategorisedRevenue / uncatCount : 0));
+        }
 
         // ── Donut: categories with spending ────────────────────────────
         var donut = _categoryRows.Where(r => r.Spent > 0).ToList();
@@ -394,6 +424,6 @@ else
 
 
 
-    private record CatRow(string Name, string Color, decimal Budget, decimal Spent);
-    private record RevRow(string Name, string Color, decimal Amount);
+    private record CatRow(string Name, string Color, decimal Budget, decimal Spent, int Count, decimal Avg);
+    private record RevRow(string Name, string Color, decimal Amount, int Count, decimal Avg);
 }
