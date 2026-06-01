@@ -15,7 +15,8 @@
                        Color="Color.Inherit"
                        Edge="Edge.Start"
                        OnClick="() => _drawerOpen = !_drawerOpen" />
-        <MudText Typo="Typo.h6" Style="font-weight:700;letter-spacing:-0.3px">FinTool</MudText>
+        <img src="fintool_preview.png" alt="Family Finance logo" style="height:28px;width:28px;object-fit:contain;" />
+        <MudText Typo="Typo.h6" Style="font-weight:700;letter-spacing:-0.3px">Family Finance</MudText>
         <MudSpacer />
         <MudTooltip Text="@(_isDark ? "Switch to light mode" : "Switch to dark mode")">
             <MudIconButton Icon="@(_isDark ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
@@ -31,8 +32,8 @@
                Elevation="2">
         <MudDrawerHeader Class="py-4 px-4">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Primary" />
-                <MudText Typo="Typo.h6" Style="font-weight:700">FinTool</MudText>
+                <img src="fintool_preview.png" alt="Family Finance logo" style="height:32px;width:32px;object-fit:contain;" />
+                <MudText Typo="Typo.h6" Style="font-weight:700">Family Finance</MudText>
             </MudStack>
         </MudDrawerHeader>
         <MudDivider Style="flex-grow:0" />
@@ -115,7 +116,7 @@
             H3        = new H3        { FontFamily = ["Playfair Display", "Georgia", "serif"], FontWeight = 600 },
             H4        = new H4        { FontFamily = ["Playfair Display", "Georgia", "serif"], FontWeight = 600 },
             H5        = new H5        { FontFamily = ["Playfair Display", "Georgia", "serif"], FontWeight = 600 },
-            H6        = new H6        { FontFamily = ["Playfair Display", "Georgia", "serif"], FontWeight = 600 },
+            H6        = new H6        { FontFamily = ["Inter", "system-ui", "sans-serif"],     FontWeight = 600 },
             Subtitle1 = new Subtitle1 { FontFamily = ["Inter", "system-ui", "sans-serif"], FontWeight = 500 },
             Subtitle2 = new Subtitle2 { FontFamily = ["Inter", "system-ui", "sans-serif"], FontWeight = 500 },
             Button    = new MudBlazor.Button
