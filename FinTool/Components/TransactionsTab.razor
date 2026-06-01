@@ -2,6 +2,7 @@
 @inject TransactionService TxSvc
 @inject BudgetService BudgetSvc
 @inject RevenueCategoryService RevenueSvc
+@inject ClosedMonthService ClosedMonthSvc
 @inject IDialogService DialogSvc
 
 <!-- Header -->
@@ -19,10 +20,26 @@
 @if (_confirmed.Count > 0)
 {
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
-        <MudText Typo="Typo.subtitle1">
-            @_filterMonth.ToString("MMMM yyyy", CultureInfo.InvariantCulture) (@_filtered.Count)
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudText Typo="Typo.subtitle1">
+                @_filterMonth.ToString("MMMM yyyy", CultureInfo.InvariantCulture) (@_filtered.Count)
+            </MudText>
+            @if (_isMonthClosed)
+            {
+                <MudTooltip Text="This month is closed and cannot be edited.">
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Default" />
+                </MudTooltip>
+            }
+        </MudStack>
         <MudSpacer />
+        @if (!_isMonthClosed && _filterMonth < _currentMonth)
+        {
+            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Lock"
+                       OnClick="CloseMonthAsync">
+                Close Month
+            </MudButton>
+        }
         <MudSelect T="string" MultiSelection="true"
                    SelectedValues="_categoryFilter"
                    SelectedValuesChanged="OnCategoryFilterChanged"
@@ -59,7 +76,11 @@
                 <MudTd DataLabel="Date">@context.Date.ToString("MMM d, yyyy")</MudTd>
                 <MudTd DataLabel="Description">@context.Description</MudTd>
                 <MudTd DataLabel="Category">
-                    @if (context.IsRevenue)
+                    @if (_isMonthClosed)
+                    {
+                        <MudText Typo="Typo.body2">@(context.Category ?? "—")</MudText>
+                    }
+                    else if (context.IsRevenue)
                     {
                         <MudSelect T="string" Value="@context.Category"
                                    ValueChanged="@(async v => await UpdateCategoryAsync(context, v))"
@@ -94,9 +115,12 @@
                     <MudText Color="@AmountColor(context.Amount)">@FormatAmount(context.Amount)</MudText>
                 </MudTd>
                 <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                   Size="Size.Small" Color="Color.Error"
-                                   OnClick="() => DeleteAsync(context)" />
+                    @if (!_isMonthClosed)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Size="Size.Small" Color="Color.Error"
+                                       OnClick="() => DeleteAsync(context)" />
+                    }
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -122,7 +146,11 @@ else
     private List<RevenueCategory> _revenueCategories = [];
     private DateOnly _filterMonth;
     private DateOnly _currentMonth;
-    private HashSet<string> _categoryFilter = [];
+    private HashSet<string> _categoryFilter  = [];
+    private HashSet<string> _closedMonths    = [];
+
+    private bool _isMonthClosed =>
+        _closedMonths.Contains(ClosedMonthService.MonthKey(_filterMonth));
 
     private IEnumerable<string> CategoryFilterOptions =>
         _categories.Select(c => c.Name)
@@ -148,6 +176,7 @@ else
         _confirmed = (await TxSvc.GetAllAsync())
             .OrderByDescending(t => t.Date).ThenBy(t => t.Description)
             .ToList();
+        _closedMonths = await ClosedMonthSvc.GetClosedAsync();
         ApplyFilter();
     }
 
@@ -169,6 +198,21 @@ else
     private void PrevMonth() { _filterMonth = _filterMonth.AddMonths(-1); ApplyFilter(); }
     private void NextMonth() { _filterMonth = _filterMonth.AddMonths(1);  ApplyFilter(); }
 
+    private async Task CloseMonthAsync()
+    {
+        var confirm = await DialogSvc.ShowMessageBox(
+            "Close Month",
+            $"Lock all transactions for {_filterMonth.ToString("MMMM yyyy", CultureInfo.InvariantCulture)}? " +
+            "This will prevent any further edits to this month.",
+            yesText: "Close Month", noText: "Cancel");
+
+        if (confirm == true)
+        {
+            await ClosedMonthSvc.CloseMonthAsync(_filterMonth);
+            _closedMonths = await ClosedMonthSvc.GetClosedAsync();
+        }
+    }
+
     private async Task OpenImportAsync()
     {
         var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
@@ -185,6 +229,7 @@ else
 
     private async Task DeleteAsync(Transaction tx)
     {
+        if (_isMonthClosed) return;
         await TxSvc.DeleteAsync(tx.Id);
         _confirmed.RemoveAll(t => t.Id == tx.Id);
         ApplyFilter();
@@ -192,6 +237,7 @@ else
 
     private async Task UpdateCategoryAsync(Transaction tx, string? newCategory)
     {
+        if (_isMonthClosed) return;
         tx.Category = newCategory;
         await TxSvc.UpdateAsync(tx);
     }
