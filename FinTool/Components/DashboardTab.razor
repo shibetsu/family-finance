@@ -108,7 +108,7 @@ else
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                             Net (Revenue − Expenses)
                         </MudText>
-                        <MudText Typo="Typo.h5" Color="@(net >= 0 ? Color.Success : Color.Error)">
+                        <MudText Typo="Typo.h6" Color="@(net >= 0 ? Color.Success : Color.Error)">
                             @(net >= 0 ? Fmt(net) : $"−{Fmt(-net)}")
                         </MudText>
                     </div>
