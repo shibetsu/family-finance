@@ -1,0 +1,420 @@
+@inject TransactionService TxSvc
+@inject BudgetService BudgetSvc
+@inject RevenueCategoryService RevenueSvc
+@using System.Globalization
+
+<!-- ── Header + month navigation ───────────────────────────────────────── -->
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-6">
+    <MudText Typo="Typo.h5">Dashboard</MudText>
+    <MudSpacer />
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="PrevMonth" />
+    <MudText Typo="Typo.subtitle1" Style="min-width:160px;text-align:center">
+        @_month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)
+    </MudText>
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                   Disabled="@(_month >= _currentMonth)"
+                   OnClick="NextMonth" />
+</MudStack>
+
+@if (_categories.Count == 0 && !_hasData)
+{
+    <MudAlert Severity="Severity.Info">
+        Add budget categories and import transactions to see your dashboard.
+    </MudAlert>
+}
+else
+{
+    <!-- ── Row 1: Expense summary cards ────────────────────────────────── -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet"
+                             Color="Color.Primary" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Monthly Budget</MudText>
+                        <MudText Typo="Typo.h6">@Fmt(_totalBudget)</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.ShoppingCart"
+                             Color="@(_totalSpent > _totalBudget && _totalBudget > 0 ? Color.Error : Color.Default)"
+                             Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Spent</MudText>
+                        <MudText Typo="Typo.h6">@Fmt(_totalSpent)</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        @{ var budgetRem = _totalBudget - _totalSpent; }
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@(budgetRem >= 0 ? Icons.Material.Filled.Savings : Icons.Material.Filled.TrendingDown)"
+                             Color="@(budgetRem >= 0 ? Color.Success : Color.Error)"
+                             Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @(budgetRem >= 0 ? "Remaining" : "Over Budget")
+                        </MudText>
+                        <MudText Typo="Typo.h6" Color="@(budgetRem >= 0 ? Color.Success : Color.Error)">
+                            @Fmt(Math.Abs(budgetRem))
+                        </MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.Receipt"
+                             Color="Color.Secondary" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Transactions</MudText>
+                        <MudText Typo="Typo.h6">@_txCount</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- ── Row 2: Revenue + Net cards ──────────────────────────────────── -->
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" sm="6">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp"
+                             Color="Color.Success" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Revenue</MudText>
+                        <MudText Typo="Typo.h6" Color="Color.Success">@Fmt(_totalRevenue)</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        @{ var net = _totalRevenue - _totalSpent; }
+        <MudItem xs="12" sm="6">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@(net >= 0 ? Icons.Material.Filled.AccountBalance : Icons.Material.Filled.Warning)"
+                             Color="@(net >= 0 ? Color.Success : Color.Error)"
+                             Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Net (Revenue − Expenses)
+                        </MudText>
+                        <MudText Typo="Typo.h5" Color="@(net >= 0 ? Color.Success : Color.Error)">
+                            @(net >= 0 ? Fmt(net) : $"−{Fmt(-net)}")
+                        </MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @if (!_hasData)
+    {
+        <MudAlert Severity="Severity.Info">
+            No transactions for @_month.ToString("MMMM yyyy", CultureInfo.InvariantCulture).
+        </MudAlert>
+    }
+    else
+    {
+        <!-- ── Donut + Bar ─────────────────────────────────────────────── -->
+        <MudGrid Class="mb-6">
+            <MudItem xs="12" md="5">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-1">Spending by Category</MudText>
+                    @if (_donutData.Length > 0)
+                    {
+                        <MudChart ChartType="ChartType.Donut"
+                                  InputData="@_donutData"
+                                  InputLabels="@_donutLabels"
+                                  ChartOptions="@_donutOptions"
+                                  Width="100%" Height="280px" />
+                    }
+                    else
+                    {
+                        <MudText Color="Color.Secondary" Class="mt-4">No categorized spending this month.</MudText>
+                    }
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="7">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-1">Budget vs Actual</MudText>
+                    @if (_barLabels.Length > 0)
+                    {
+                        <MudChart ChartType="ChartType.Bar"
+                                  ChartSeries="@_barSeries"
+                                  XAxisLabels="@_barLabels"
+                                  ChartOptions="@_barOptions"
+                                  Width="100%" Height="280px" />
+                    }
+                    else
+                    {
+                        <MudText Color="Color.Secondary" Class="mt-4">Add budget categories to see this chart.</MudText>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <!-- ── 6-month trend (expenses + revenue) ──────────────────────── -->
+        <MudPaper Elevation="1" Class="pa-4 mb-6">
+            <MudText Typo="Typo.subtitle1" Class="mb-1">6-Month Trend</MudText>
+            <MudChart ChartType="ChartType.Line"
+                      ChartSeries="@_trendSeries"
+                      XAxisLabels="@_trendLabels"
+                      ChartOptions="@_trendOptions"
+                      Width="100%" Height="220px" />
+        </MudPaper>
+
+        <!-- ── Expense category breakdown ─────────────────────────────── -->
+        <MudText Typo="Typo.subtitle1" Class="mb-2">Expense Breakdown</MudText>
+        <MudTable T="CatRow" Items="_categoryRows" Dense="true" Hover="true" Elevation="1" Class="mb-6">
+            <HeaderContent>
+                <MudTh>Category</MudTh>
+                <MudTh Style="text-align:right">Budget</MudTh>
+                <MudTh Style="text-align:right">Spent</MudTh>
+                <MudTh Style="text-align:right">Remaining</MudTh>
+                <MudTh Style="min-width:140px">Usage</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                @{
+                    var rowRem   = context.Budget - context.Spent;
+                    var pct      = context.Budget > 0 ? (int)Math.Min(100, context.Spent / context.Budget * 100) : 0;
+                    var barColor = pct >= 100 ? Color.Error : pct >= 80 ? Color.Warning : Color.Success;
+                }
+                <MudTd DataLabel="Category">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Circle"
+                                 Style="@($"color:{context.Color}")" Size="Size.Small" />
+                        @context.Name
+                    </MudStack>
+                </MudTd>
+                <MudTd Style="text-align:right">@Fmt(context.Budget)</MudTd>
+                <MudTd Style="text-align:right">
+                    <MudText Color="@(context.Spent > context.Budget && context.Budget > 0 ? Color.Error : Color.Default)">
+                        @Fmt(context.Spent)
+                    </MudText>
+                </MudTd>
+                <MudTd Style="text-align:right">
+                    <MudText Color="@(rowRem >= 0 ? Color.Success : Color.Error)">
+                        @(rowRem >= 0 ? Fmt(rowRem) : $"−{Fmt(-rowRem)}")
+                    </MudText>
+                </MudTd>
+                <MudTd>
+                    @if (context.Budget > 0)
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudProgressLinear Value="@pct" Color="@barColor"
+                                               Size="Size.Medium" Rounded="true"
+                                               Style="flex:1" />
+                            <MudText Typo="Typo.caption" Style="min-width:36px">@pct%</MudText>
+                        </MudStack>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+
+        <!-- ── Revenue breakdown ──────────────────────────────────────── -->
+        @if (_revenueRows.Count > 0)
+        {
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Revenue Breakdown</MudText>
+            <MudTable T="RevRow" Items="_revenueRows" Dense="true" Hover="true" Elevation="1">
+                <HeaderContent>
+                    <MudTh>Category</MudTh>
+                    <MudTh Style="text-align:right">Amount</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Category">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Circle"
+                                     Style="@($"color:{context.Color}")" Size="Size.Small" />
+                            @context.Name
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Amount" Style="text-align:right">
+                        <MudText Color="Color.Success">@Fmt(context.Amount)</MudText>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    }
+}
+
+@code {
+    private static readonly CultureInfo _cad = CultureInfo.GetCultureInfo("en-CA");
+
+    private DateOnly _month;
+    private DateOnly _currentMonth;
+
+    private List<BudgetCategory>  _categories        = [];
+    private List<RevenueCategory> _revenueCategories = [];
+    private List<Transaction>     _allTx             = [];
+
+    private bool    _hasData;
+    private decimal _totalBudget;
+    private decimal _totalSpent;
+    private decimal _totalRevenue;
+    private int     _txCount;
+
+    private List<CatRow> _categoryRows = [];
+    private List<RevRow> _revenueRows  = [];
+
+    private double[]          _donutData    = [];
+    private string[]          _donutLabels  = [];
+    private ChartOptions      _donutOptions = new();
+    private List<ChartSeries> _barSeries    = [];
+    private string[]          _barLabels    = [];
+    private ChartOptions      _barOptions   = new();
+    private List<ChartSeries> _trendSeries  = [];
+    private string[]          _trendLabels  = [];
+    private ChartOptions      _trendOptions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var today     = DateOnly.FromDateTime(DateTime.Now);
+        _currentMonth = new DateOnly(today.Year, today.Month, 1);
+        _month        = _currentMonth;
+
+        _categories        = await BudgetSvc.GetCategoriesAsync();
+        _revenueCategories = await RevenueSvc.GetCategoriesAsync();
+        _allTx             = await TxSvc.GetAllAsync();
+        Compute();
+    }
+
+    private void PrevMonth() { _month = _month.AddMonths(-1); Compute(); }
+    private void NextMonth() { _month = _month.AddMonths(1);  Compute(); }
+
+    private void Compute()
+    {
+        var monthTx = _allTx
+            .Where(t => t.Date.Year == _month.Year && t.Date.Month == _month.Month)
+            .ToList();
+
+        // Ignored category name sets — these are excluded from all totals and charts
+        var ignoredBudget  = _categories.Where(c => c.IsIgnored)
+            .Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var ignoredRevenue = _revenueCategories.Where(c => c.IsIgnored)
+            .Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _txCount      = monthTx.Count;
+        _totalBudget  = _categories.Where(c => !c.IsIgnored).Sum(c => c.MonthlyAmount);
+        _totalSpent   = monthTx
+            .Where(t => t.Amount > 0 && !t.IsRevenue && !ignoredBudget.Contains(t.Category ?? ""))
+            .Sum(t => t.Amount);
+        _totalRevenue = monthTx
+            .Where(t => t.IsRevenue && !ignoredRevenue.Contains(t.Category ?? ""))
+            .Sum(t => -t.Amount);
+        _hasData      = monthTx.Count > 0;
+
+        // ── Expense category rows (non-ignored only) ────────────────────
+        _categoryRows = _categories
+            .Where(c => !c.IsIgnored)
+            .Select(cat =>
+            {
+                var spent = monthTx
+                    .Where(t => !t.IsRevenue && t.Amount > 0 &&
+                                string.Equals(t.Category, cat.Name, StringComparison.OrdinalIgnoreCase))
+                    .Sum(t => t.Amount);
+                return new CatRow(cat.Name, cat.Color, cat.MonthlyAmount, spent);
+            })
+            .OrderByDescending(r => r.Spent)
+            .ToList();
+
+        // ── Revenue breakdown rows (non-ignored only) ───────────────────
+        var uncategorisedRevenue = monthTx
+            .Where(t => t.IsRevenue && string.IsNullOrEmpty(t.Category))
+            .Sum(t => -t.Amount);
+
+        _revenueRows = _revenueCategories
+            .Where(c => !c.IsIgnored)
+            .Select(cat =>
+            {
+                var amount = monthTx
+                    .Where(t => t.IsRevenue &&
+                                string.Equals(t.Category, cat.Name, StringComparison.OrdinalIgnoreCase))
+                    .Sum(t => -t.Amount);
+                return new RevRow(cat.Name, cat.Color, amount);
+            })
+            .Where(r => r.Amount > 0)
+            .ToList();
+
+        if (uncategorisedRevenue > 0)
+            _revenueRows.Add(new RevRow("Uncategorised", "#9E9E9E", uncategorisedRevenue));
+
+        // ── Donut: categories with spending ────────────────────────────
+        var donut = _categoryRows.Where(r => r.Spent > 0).ToList();
+        _donutData   = donut.Select(r => (double)r.Spent).ToArray();
+        _donutLabels = donut.Select(r => r.Name).ToArray();
+        _donutOptions = new ChartOptions
+        {
+            ChartPalette = donut.Select(r => r.Color).ToArray(),
+            ShowLegend   = true
+        };
+
+        // ── Bar: all budget categories ──────────────────────────────────
+        _barLabels = _categoryRows.Select(r => ShortenLabel(r.Name)).ToArray();
+        _barSeries =
+        [
+            new ChartSeries { Name = "Budget", Data = _categoryRows.Select(r => (double)r.Budget).ToArray() },
+            new ChartSeries { Name = "Spent",  Data = _categoryRows.Select(r => (double)r.Spent).ToArray()  }
+        ];
+        _barOptions = new ChartOptions
+        {
+            ChartPalette = ["#BDBDBD", "#594AE2"],
+            YAxisFormat  = "C0"
+        };
+
+        // ── Trend: last 6 months, expenses AND revenue ──────────────────
+        _trendLabels = Enumerable.Range(0, 6)
+            .Select(i => _month.AddMonths(i - 5).ToString("MMM yy", CultureInfo.InvariantCulture))
+            .ToArray();
+
+        _trendSeries =
+        [
+            new ChartSeries
+            {
+                Name = "Expenses",
+                Data = Enumerable.Range(0, 6).Select(i =>
+                {
+                    var m = _month.AddMonths(i - 5);
+                    return (double)_allTx
+                        .Where(t => t.Date.Year == m.Year && t.Date.Month == m.Month
+                                 && t.Amount > 0 && !t.IsRevenue)
+                        .Sum(t => t.Amount);
+                }).ToArray()
+            },
+            new ChartSeries
+            {
+                Name = "Revenue",
+                Data = Enumerable.Range(0, 6).Select(i =>
+                {
+                    var m = _month.AddMonths(i - 5);
+                    return (double)_allTx
+                        .Where(t => t.Date.Year == m.Year && t.Date.Month == m.Month && t.IsRevenue)
+                        .Sum(t => -t.Amount);
+                }).ToArray()
+            }
+        ];
+        _trendOptions = new ChartOptions
+        {
+            ChartPalette        = ["#594AE2", "#4CAF50"],
+            InterpolationOption = InterpolationOption.NaturalSpline,
+            YAxisFormat         = "C0"
+        };
+    }
+
+    private static string Fmt(decimal v) =>
+        v.ToString("C0", CultureInfo.GetCultureInfo("en-CA"));
+
+    private static string ShortenLabel(string s) => s.Length > 12 ? s[..12] + "…" : s;
+
+    private record CatRow(string Name, string Color, decimal Budget, decimal Spent);
+    private record RevRow(string Name, string Color, decimal Amount);
+}

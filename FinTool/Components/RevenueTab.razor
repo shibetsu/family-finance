@@ -1,0 +1,116 @@
+@inject RevenueCategoryService RevenueSvc
+@inject IDialogService DialogSvc
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Revenue</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="AddCategory">
+        Add Category
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_categories.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-2">
+        No revenue categories yet. Add categories like Salary, Freelance, or Investments.
+    </MudAlert>
+}
+else
+{
+    <MudTable T="RevenueCategory" Items="_categories" Hover="true" Elevation="1">
+        <HeaderContent>
+            <MudTh>Category</MudTh>
+            <MudTh Style="text-align:right">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Category">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2"
+                          Style="@(context.IsIgnored ? "opacity:0.45" : "")">
+                    <MudIcon Icon="@Icons.Material.Filled.Circle"
+                             Style="@($"color:{context.Color}")" Size="Size.Small" />
+                    <MudText>@context.Name</MudText>
+                    @if (context.IsIgnored)
+                    {
+                        <MudTooltip Text="Excluded from dashboard and totals">
+                            <MudIcon Icon="@Icons.Material.Filled.VisibilityOff"
+                                     Size="Size.Small" Color="Color.Default" />
+                        </MudTooltip>
+                    }
+                </MudStack>
+            </MudTd>
+            <MudTd Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Size="Size.Small"
+                               OnClick="() => EditCategory(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Size="Size.Small" Color="Color.Error"
+                               OnClick="() => DeleteCategory(context)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<RevenueCategory> _categories = [];
+    private bool _loading = true;
+
+    private static readonly DialogOptions _dialogOptions =
+        new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = await RevenueSvc.GetCategoriesAsync();
+        _loading = false;
+    }
+
+    private async Task AddCategory()
+    {
+        var category = new RevenueCategory();
+        var parameters = new DialogParameters<RevenueCategoryDialog> { { x => x.Category, category } };
+        var dialog = await DialogSvc.ShowAsync<RevenueCategoryDialog>(
+            "Add Revenue Category", parameters, _dialogOptions);
+        if (!(await dialog.Result)!.Canceled)
+        {
+            await RevenueSvc.SaveAsync(category);
+            _categories = await RevenueSvc.GetCategoriesAsync();
+        }
+    }
+
+    private async Task EditCategory(RevenueCategory original)
+    {
+        var copy = new RevenueCategory
+        {
+            Id        = original.Id,
+            Name      = original.Name,
+            Color     = original.Color,
+            IsIgnored = original.IsIgnored
+        };
+        var parameters = new DialogParameters<RevenueCategoryDialog> { { x => x.Category, copy } };
+        var dialog = await DialogSvc.ShowAsync<RevenueCategoryDialog>(
+            "Edit Revenue Category", parameters, _dialogOptions);
+        if (!(await dialog.Result)!.Canceled)
+        {
+            await RevenueSvc.SaveAsync(copy);
+            _categories = await RevenueSvc.GetCategoriesAsync();
+        }
+    }
+
+    private async Task DeleteCategory(RevenueCategory category)
+    {
+        var confirmed = await DialogSvc.ShowMessageBox(
+            "Delete Category",
+            $"Delete \"{category.Name}\"? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirmed == true)
+        {
+            await RevenueSvc.DeleteAsync(category.Id);
+            _categories = await RevenueSvc.GetCategoriesAsync();
+        }
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "msQQzdLqtNXC0J+GaHwvbovd2cgJGji7gIZbTLYCqUI=",
+  "Source": "FinTool.Server",
+  "BasePath": "_content/FinTool.Server",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

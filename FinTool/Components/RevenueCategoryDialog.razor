@@ -1,0 +1,62 @@
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="Category.Name"
+                          Label="Category name"
+                          Required="true"
+                          RequiredError="Name is required."
+                          Immediate="true"
+                          Class="mb-4" />
+
+            <MudText Typo="Typo.caption" Class="mb-1">Colour</MudText>
+            <MudColorPicker @bind-Value="_color"
+                            PickerVariant="PickerVariant.Static"
+                            ShowAlpha="false"
+                            ColorPickerMode="ColorPickerMode.HEX"
+                            Palette="_quickPalette"
+                            Class="mb-1" />
+
+            <MudSwitch T="bool"
+                       @bind-Value="Category.IsIgnored"
+                       Color="Color.Warning"
+                       Label="Exclude from dashboard and totals"
+                       Class="mt-2" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public RevenueCategory Category { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private MudColor _color = new("#4CAF50");
+
+    private static readonly IEnumerable<MudColor> _quickPalette =
+    [
+        new MudColor("#4CAF50"), new MudColor("#8BC34A"), new MudColor("#009688"),
+        new MudColor("#2196F3"), new MudColor("#594AE2"), new MudColor("#9C27B0"),
+        new MudColor("#FF9800"), new MudColor("#F44336"), new MudColor("#607D8B"),
+        new MudColor("#795548")
+    ];
+
+    protected override void OnParametersSet()
+    {
+        try   { _color = new MudColor(Category.Color); }
+        catch { _color = new MudColor("#4CAF50"); }
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (_form.IsValid)
+        {
+            Category.Color = $"#{_color.R:X2}{_color.G:X2}{_color.B:X2}";
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+}
