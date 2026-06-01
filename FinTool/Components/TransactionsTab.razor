@@ -3,6 +3,7 @@
 @inject BudgetService BudgetSvc
 @inject RevenueCategoryService RevenueSvc
 @inject ClosedMonthService ClosedMonthSvc
+@inject MerchantCacheService CacheSvc
 @inject IDialogService DialogSvc
 
 <!-- Header -->
@@ -302,6 +303,8 @@ else
         if (_isMonthClosed) return;
         tx.Category = newCategory;
         await TxSvc.UpdateAsync(tx);
+        if (!string.IsNullOrEmpty(newCategory))
+            await CacheSvc.SetCategoryAsync(tx.Description, newCategory);
     }
 
     private static Color AmountColor(decimal amount) =>
