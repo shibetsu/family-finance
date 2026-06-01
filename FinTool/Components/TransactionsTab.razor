@@ -38,6 +38,14 @@
             }
         </MudStack>
         <MudSpacer />
+        @if (_selected.Count > 0 && !_isMonthClosed)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.DeleteForever"
+                       OnClick="DeleteSelectedAsync">
+                Delete (@_selected.Count)
+            </MudButton>
+        }
         <MudSelect T="string" MultiSelection="true"
                    SelectedValues="_categoryFilter"
                    SelectedValuesChanged="OnCategoryFilterChanged"
@@ -59,6 +67,16 @@
     {
         <MudTable T="Transaction" Items="_filtered" Dense="true" Hover="true" Elevation="1">
             <HeaderContent>
+                <MudTh Style="width:44px">
+                    @if (!_isMonthClosed)
+                    {
+                        <MudCheckBox T="bool"
+                                     Value="@_allSelected"
+                                     Indeterminate="@(!_noneSelected && !_allSelected)"
+                                     ValueChanged="@(_ => ToggleSelectAll())"
+                                     Size="Size.Small" />
+                    }
+                </MudTh>
                 <MudTh>
                     <MudTableSortLabel InitialDirection="SortDirection.Descending"
                                        SortBy="new Func<Transaction, object>(t => t.Date.ToDateTime(TimeOnly.MinValue))">
@@ -71,6 +89,15 @@
                 <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
+                <MudTd>
+                    @if (!_isMonthClosed)
+                    {
+                        <MudCheckBox T="bool"
+                                     Value="@_selected.Contains(context.Id)"
+                                     ValueChanged="@(_ => ToggleSelect(context))"
+                                     Size="Size.Small" />
+                    }
+                </MudTd>
                 <MudTd DataLabel="Date">@context.Date.ToString("MMM d, yyyy")</MudTd>
                 <MudTd DataLabel="Description">@context.Description</MudTd>
                 <MudTd DataLabel="Category">
@@ -146,9 +173,13 @@ else
     private DateOnly _currentMonth;
     private HashSet<string> _categoryFilter  = [];
     private HashSet<string> _closedMonths    = [];
+    private HashSet<Guid>   _selected        = [];
 
     private bool _isMonthClosed =>
         _closedMonths.Contains(ClosedMonthService.MonthKey(_filterMonth));
+
+    private bool _allSelected  => _filtered.Count > 0 && _selected.Count == _filtered.Count;
+    private bool _noneSelected => _selected.Count == 0;
 
     private IEnumerable<string> CategoryFilterOptions =>
         _categories.Select(c => c.Name)
@@ -185,6 +216,7 @@ else
         if (_categoryFilter.Count > 0)
             q = q.Where(t => _categoryFilter.Contains(t.Category ?? "Unclassified"));
         _filtered = q.ToList();
+        _selected.IntersectWith(_filtered.Select(t => t.Id));
     }
 
     private void OnCategoryFilterChanged(IEnumerable<string> values)
@@ -223,6 +255,39 @@ else
                 .ToList();
             ApplyFilter();
         }
+    }
+
+    private void ToggleSelect(Transaction tx)
+    {
+        if (!_selected.Remove(tx.Id))
+            _selected.Add(tx.Id);
+    }
+
+    private void ToggleSelectAll()
+    {
+        if (_allSelected)
+            _selected.Clear();
+        else
+            _selected = _filtered.Select(t => t.Id).ToHashSet();
+    }
+
+    private async Task DeleteSelectedAsync()
+    {
+        if (_selected.Count == 0 || _isMonthClosed) return;
+
+        var confirm = await DialogSvc.ShowMessageBox(
+            "Delete transactions",
+            $"Permanently delete {_selected.Count} selected transaction(s)?",
+            yesText: "Delete", noText: "Cancel");
+
+        if (confirm != true) return;
+
+        foreach (var id in _selected.ToList())
+            await TxSvc.DeleteAsync(id);
+
+        _confirmed.RemoveAll(t => _selected.Contains(t.Id));
+        _selected.Clear();
+        ApplyFilter();
     }
 
     private async Task DeleteAsync(Transaction tx)
