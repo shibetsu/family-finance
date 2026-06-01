@@ -2,7 +2,7 @@
 
 A personal finance tracker built for Desjardins (AccèsD) account holders. Paste your transaction history directly from the AccèsD web portal, let a local Claude AI classify them into your budget categories, then review monthly spending through an interactive dashboard.
 
-All data is stored in your browser's `localStorage` — no account, no cloud, no database.
+Data is stored in a local **SQLite database** — no account, no cloud, no third-party service.
 
 ---
 
@@ -53,30 +53,31 @@ family-finance/
 │   │   ├── BudgetCategory.cs
 │   │   └── RevenueCategory.cs
 │   ├── Services/
-│   │   ├── LocalStorageService.cs      # JS interop for localStorage
-│   │   ├── TransactionService.cs       # Transaction CRUD
-│   │   ├── BudgetService.cs            # Budget category CRUD
-│   │   ├── RevenueCategoryService.cs   # Revenue category CRUD
-│   │   ├── MerchantCacheService.cs     # Description → category memory
-│   │   ├── ClosedMonthService.cs       # Month lock tracking
-│   │   ├── ClaudeService.cs            # HTTP client for local AI server
+│   │   ├── LocalStorageService.cs      # JS interop — dark mode pref only
+│   │   ├── TransactionService.cs       # Transaction CRUD (via HTTP)
+│   │   ├── BudgetService.cs            # Budget category CRUD (via HTTP)
+│   │   ├── RevenueCategoryService.cs   # Revenue category CRUD (via HTTP)
+│   │   ├── MerchantCacheService.cs     # Description → category memory (via HTTP)
+│   │   ├── ClosedMonthService.cs       # Month lock tracking (via HTTP)
+│   │   ├── ClaudeService.cs            # AI classification (via HTTP)
 │   │   └── DesjardinsParser.cs         # AccèsD paste parser
 │   └── wwwroot/                        # Static assets, favicon, manifest
 │
-└── FinTool.Server/             # Minimal ASP.NET Core API (AI bridge)
-    └── Program.cs              # /api/ping + /api/classify endpoints
+└── FinTool.Server/             # ASP.NET Core API — SQLite database + AI bridge
+    └── Program.cs              # EF Core DbContext, REST endpoints, Claude runner
 ```
 
 ### Data flow
 
 ```
 AccèsD paste
-    └─► DesjardinsParser          (parse into Transaction objects)
-            └─► MerchantCacheService   (check previously learned categories)
-            └─► ClaudeService          (classify uncached transactions via AI)
-                    └─► FinTool.Server     (shells out to `claude -p`)
-            └─► ImportDialog        (user reviews & confirms)
-                    └─► TransactionService (persist to localStorage)
+    └─► DesjardinsParser              (parse into Transaction objects)
+            └─► MerchantCacheService  (lookup previously learned categories)
+            └─► ClaudeService         (classify uncached transactions via AI)
+                    └─► FinTool.Server    (shells out to `claude -p`)
+            └─► ImportDialog          (user reviews & confirms)
+                    └─► TransactionService
+                            └─► FinTool.Server  (persists to SQLite)
 ```
 
 ---
@@ -90,7 +91,7 @@ AccèsD paste
 | [.NET 8 SDK](https://dotnet.microsoft.com/download) | Required to build and run both projects |
 | [Claude Code CLI](https://claude.ai/code) | Optional — only needed for AI auto-classification (`claude` must be on your PATH) |
 
-> **`FinTool.Server` is required** — it serves both the SQLite database API and the optional AI classification endpoint. The Blazor app will not load data without it running.
+> **`FinTool.Server` is required** — it hosts the SQLite database and exposes the REST API the Blazor app depends on. The app will not load any data without it running.
 >
 > **AI classification is optional.** If the Claude CLI is not installed, the server still starts and all data features work — transactions just won't be auto-classified during import.
 
@@ -107,12 +108,17 @@ Then open [http://localhost:5254](http://localhost:5254) in your browser.
 **Or start each project manually:**
 
 ```powershell
-# Terminal 1 — AI classification server (optional)
+# Terminal 1 — API server (required: database + optional AI)
 dotnet run --project FinTool.Server
 
 # Terminal 2 — Blazor app (with hot reload)
 dotnet watch --project FinTool --launch-profile http
 ```
+
+**First run:** `FinTool.Server` automatically creates the SQLite database at
+`%LocalAppData%\FamilyFinance\family-finance.db` — no migration commands needed.
+
+**Fresh clone:** run `dotnet restore` once before the above if packages haven't been downloaded yet.
 
 ---
 
@@ -167,16 +173,45 @@ The schema is created automatically on first startup via EF Core's `EnsureCreate
 
 ---
 
-## AI Classification (FinTool.Server)
+## API Reference (FinTool.Server)
 
-`FinTool.Server` is a minimal ASP.NET Core app that acts as a bridge between the Blazor frontend and the locally installed Claude CLI.
+`FinTool.Server` is a minimal ASP.NET Core app running on `http://localhost:5111`. All responses use PascalCase JSON.
 
-**Endpoints:**
+### Transactions
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/transactions` | All transactions, ordered by date desc |
+| `POST` | `/api/transactions/batch` | Import array; skips duplicates (same date + description + amount) |
+| `PUT` | `/api/transactions/{id}` | Update category / flags on one transaction |
+| `DELETE` | `/api/transactions/{id}` | Delete a transaction |
+
+### Categories
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/budget-categories` | All budget categories |
+| `POST` | `/api/budget-categories` | Create or update (upsert by Id) |
+| `DELETE` | `/api/budget-categories/{id}` | Delete a budget category |
+| `GET` | `/api/revenue-categories` | All revenue categories |
+| `POST` | `/api/revenue-categories` | Create or update (upsert by Id) |
+| `DELETE` | `/api/revenue-categories/{id}` | Delete a revenue category |
+
+### Merchant Cache & Closed Months
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/merchant-cache/lookup` | Look up cached category for a description |
+| `POST` | `/api/merchant-cache/set` | Store a description → category mapping |
+| `GET` | `/api/closed-months` | List all locked month keys |
+| `POST` | `/api/closed-months` | Lock a month |
+
+### AI Classification
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/ping` | Health check — returns `{"status":"ok"}` |
-| `POST` | `/api/classify` | Classifies a batch of transaction descriptions |
+| `POST` | `/api/classify` | Classify a batch of transaction descriptions |
 
 **Classify request:**
 ```json
@@ -225,5 +260,5 @@ French month abbreviations are supported (jan, janv, fév, mar, avr, mai, juin, 
 | Heading font | [Playfair Display](https://fonts.google.com/specimen/Playfair+Display) |
 | Body font | [Inter](https://fonts.google.com/specimen/Inter) |
 | AI | [Claude Code CLI](https://claude.ai/code) (local, via `FinTool.Server`) |
-| Data persistence | Browser `localStorage` (JS interop) |
-| Backend (AI bridge) | ASP.NET Core minimal API (.NET 8) |
+| Database | SQLite via [EF Core 8](https://learn.microsoft.com/ef/core/) |
+| Backend | ASP.NET Core minimal API (.NET 8) |
