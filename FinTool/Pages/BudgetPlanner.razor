@@ -1,0 +1,413 @@
+@page "/budget-planner"
+@inject TransactionService TxSvc
+@inject BudgetService BudgetSvc
+@inject RevenueCategoryService RevenueSvc
+@inject BudgetPlannerService PlannerSvc
+@using System.Globalization
+@using FinTool.Models
+
+<PageTitle>Budget Planner – FinTool</PageTitle>
+
+@if (_loading)
+{
+    <LoadingOverlay />
+}
+else
+{
+    <!-- ── Header ───────────────────────────────────────────────────────── -->
+    <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-5" Spacing="2">
+        <MudText Typo="Typo.h5">Budget Planner</MudText>
+        <MudSpacer />
+        @if (_importOptions.Count > 0)
+        {
+            <MudMenu StartIcon="@Icons.Material.Filled.FileDownload" Label="Import history"
+                     Variant="Variant.Outlined" Size="Size.Small" AnchorOrigin="Origin.BottomRight"
+                     TransformOrigin="Origin.TopRight">
+                @foreach (var opt in _importOptions)
+                {
+                    var o = opt;
+                    <MudMenuItem OnClick="@(() => ImportAsync(o.Months, o.Label))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <div>
+                                <MudText Typo="Typo.body2">@o.Label</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @(o.Months == 1 ? "1 month" : $"Average of {o.Months} months")
+                                </MudText>
+                            </div>
+                        </MudStack>
+                    </MudMenuItem>
+                }
+            </MudMenu>
+        }
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                   Color="Color.Primary" Size="Size.Small" OnClick="AddDraft">
+            New Draft
+        </MudButton>
+    </MudStack>
+
+    @if (_drafts.Count == 0)
+    {
+        <!-- ── Empty state ──────────────────────────────────────────────── -->
+        <MudPaper Elevation="0" Class="pa-10" Style="text-align:center;border:2px dashed var(--mud-palette-divider);border-radius:12px">
+            <MudIcon Icon="@Icons.Material.Filled.Savings" Style="font-size:3rem;opacity:0.3" Class="mb-3" />
+            <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Class="mb-1">No drafts yet</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                Start from scratch or pull in your actual spending as a baseline.
+            </MudText>
+            <MudStack Row="true" Justify="Justify.Center" Spacing="2">
+                @if (_importOptions.Count > 0)
+                {
+                    <MudButton StartIcon="@Icons.Material.Filled.FileDownload"
+                               Variant="Variant.Outlined"
+                               OnClick="@(() => ImportAsync(_importOptions[^1].Months, _importOptions[^1].Label))">
+                        Import last @(_importOptions[^1].Months == 1 ? "month" : $"{_importOptions[^1].Months} months")
+                    </MudButton>
+                }
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                           Color="Color.Primary" OnClick="AddDraft">
+                    New blank draft
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+    else
+    {
+        <!-- ── Draft tab bar ────────────────────────────────────────────── -->
+        <div style="display:flex;align-items:center;gap:4px;overflow-x:auto;padding-bottom:2px;margin-bottom:16px">
+            @for (var i = 0; i < _drafts.Count; i++)
+            {
+                var idx = i;
+                var active = idx == _activeIdx;
+                <div @onclick="@(() => _activeIdx = idx)"
+                     style="@TabStyle(active)">
+                    <input value="@_drafts[idx].Name"
+                           @onchange="@(async e => { _drafts[idx].Name = e.Value?.ToString() ?? _drafts[idx].Name; await SaveAsync(); })"
+                           @onclick:stopPropagation="true"
+                           style="@InputStyle(active, _drafts[idx].Name.Length)" />
+                    <button type="button"
+                            @onclick="@(async () => await DeleteDraftAsync(idx))"
+                            @onclick:stopPropagation="true"
+                            style="background:none;border:none;padding:2px;cursor:pointer;display:flex;align-items:center;color:inherit;opacity:0.55;flex-shrink:0;border-radius:4px">
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+                    </button>
+                </div>
+            }
+        </div>
+
+        <!-- ── Summary cards ────────────────────────────────────────────── -->
+        <MudGrid Class="mb-6">
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet"
+                                 Color="Color.Primary" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Monthly Budget</MudText>
+                            <MudText Typo="Typo.h6">@Fmt(TotalExpense)</MudText>
+                        </div>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp"
+                                 Color="Color.Success" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Monthly Revenue</MudText>
+                            <MudText Typo="Typo.h6" Color="Color.Success">@Fmt(TotalRevenue)</MudText>
+                        </div>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                        <MudIcon Icon="@(Net >= 0 ? Icons.Material.Filled.AccountBalance : Icons.Material.Filled.Warning)"
+                                 Color="@(Net >= 0 ? Color.Success : Color.Error)" Size="Size.Large" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Net</MudText>
+                            <MudText Typo="Typo.h6" Color="@(Net >= 0 ? Color.Success : Color.Error)">
+                                @(Net >= 0 ? Fmt(Net) : $"−{Fmt(-Net)}")
+                            </MudText>
+                        </div>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <!-- ── Expense + Revenue tables ─────────────────────────────────── -->
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                @DrawTable(ActiveDraft, isRevenue: false)
+            </MudItem>
+            <MudItem xs="12" md="6">
+                @DrawTable(ActiveDraft, isRevenue: true)
+            </MudItem>
+        </MudGrid>
+    }
+}
+
+@code {
+    private bool _loading = true;
+
+    private List<Transaction>     _allTx      = [];
+    private List<BudgetCategory>  _budgetCats = [];
+    private List<RevenueCategory> _revCats    = [];
+    private List<BudgetDraft>     _drafts     = [];
+    private int                   _activeIdx  = 0;
+
+    private Dictionary<string, decimal> _histExpense = [];
+    private Dictionary<string, decimal> _histRevenue = [];
+    private List<(int Months, string Label)> _importOptions = [];
+
+    private BudgetDraft ActiveDraft  => _drafts[_activeIdx];
+    private decimal     TotalExpense => ActiveDraft.Expenses.Sum(r => r.Amount);
+    private decimal     TotalRevenue => ActiveDraft.Revenue.Sum(r => r.Amount);
+    private decimal     Net          => TotalRevenue - TotalExpense;
+
+    private static readonly CultureInfo _ca = CultureInfo.GetCultureInfo("en-CA");
+    private static string Fmt(decimal v) => v.ToString("C0", _ca);
+
+    private static string TabStyle(bool active) =>
+        "display:flex;align-items:center;gap:4px;padding:4px 4px 4px 12px;" +
+        "border-radius:8px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;" +
+        "border:1px solid " + (active ? "var(--mud-palette-primary)" : "var(--mud-palette-divider)") + ";" +
+        "background:" + (active ? "var(--mud-palette-action-default-hover)" : "transparent");
+
+    private static string InputStyle(bool active, int nameLen) =>
+        "border:none;outline:none;background:transparent;font-size:0.875rem;color:inherit;cursor:text;" +
+        "font-weight:" + (active ? "600" : "400") + ";" +
+        "width:" + Math.Max(60, nameLen * 9) + "px";
+
+    // ── Render helpers ───────────────────────────────────────────────────
+
+    private RenderFragment DrawTable(BudgetDraft draft, bool isRevenue) => __builder =>
+    {
+        var rows     = isRevenue ? draft.Revenue : draft.Expenses;
+        var hist     = isRevenue ? _histRevenue : _histExpense;
+        var title    = isRevenue ? "Revenue" : "Expenses";
+        var addColor = isRevenue ? "#4CAF50" : "#594AE2";
+        var hasHist  = hist.Count > 0;
+        var gridCols = hasHist ? "28px 1fr 110px 80px 32px" : "28px 1fr 110px 32px";
+
+        <MudPaper Elevation="1" Class="pa-4" Style="height:100%">
+            <MudText Typo="Typo.subtitle1" Class="mb-3">@title</MudText>
+
+            @if (rows.Count > 0)
+            {
+                <!-- Column headers -->
+                <div style="display:grid;grid-template-columns:@gridCols;gap:6px;align-items:center;padding:0 0 6px;border-bottom:1px solid var(--mud-palette-divider);margin-bottom:4px">
+                    <div></div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Category</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="text-align:right">Monthly</MudText>
+                    @if (hasHist)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="text-align:right">Hist. avg</MudText>
+                    }
+                    <div></div>
+                </div>
+
+                @foreach (var row in rows)
+                {
+                    var r = row;
+                    var histAmt = hist.GetValueOrDefault(r.Name);
+                    var diff = r.Amount - histAmt;
+
+                    <div style="display:grid;grid-template-columns:@gridCols;gap:6px;align-items:center;padding:3px 0">
+                        <!-- Color picker -->
+                        <div style="position:relative;width:22px;height:22px;flex-shrink:0">
+                            <div style="width:22px;height:22px;border-radius:50%;background:@r.Color;border:1px solid rgba(0,0,0,.1)"></div>
+                            <input type="color" value="@r.Color"
+                                   @onchange="@(async e => { r.Color = e.Value?.ToString() ?? r.Color; await SaveAsync(); })"
+                                   style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
+                        </div>
+
+                        <!-- Name -->
+                        <input value="@r.Name"
+                               @onchange="@(async e => { r.Name = e.Value?.ToString() ?? r.Name; await SaveAsync(); })"
+                               placeholder="Category name"
+                               style="border:none;border-bottom:1px solid var(--mud-palette-divider);outline:none;background:transparent;font-size:0.875rem;color:inherit;width:100%;padding:2px 0" />
+
+                        <!-- Amount -->
+                        <MudNumericField T="decimal" Value="@r.Amount"
+                                         ValueChanged="@(async v => { r.Amount = v; await SaveAsync(); })"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Format="N0" HideSpinButtons="true"
+                                         Style="font-size:0.875rem" />
+
+                        <!-- Historical avg -->
+                        @if (hasHist)
+                        {
+                            <div style="text-align:right">
+                                @if (histAmt > 0)
+                                {
+                                    <MudTooltip Text="@(diff >= 0 ? $"+{Fmt(diff)} vs historical avg" : $"−{Fmt(-diff)} vs historical avg")">
+                                        <MudText Typo="Typo.caption"
+                                                 Color="@(Math.Abs(diff) < histAmt * 0.05m ? Color.Secondary : diff > 0 ? Color.Warning : Color.Success)"
+                                                 Style="cursor:default">
+                                            ~@Fmt(histAmt)
+                                        </MudText>
+                                    </MudTooltip>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="opacity:0.4">—</MudText>
+                                }
+                            </div>
+                        }
+
+                        <!-- Delete -->
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small"
+                                       Color="Color.Default"
+                                       OnClick="@(async () => { rows.Remove(r); await SaveAsync(); })" />
+                    </div>
+                }
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3" Style="opacity:0.6">
+                    No @title.ToLower() categories yet.
+                </MudText>
+            }
+
+            <!-- Add row -->
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" Variant="Variant.Text"
+                       Color="Color.Default" Class="mt-2"
+                       OnClick="@(async () => { rows.Add(new DraftRow { Color = addColor }); await SaveAsync(); })">
+                Add category
+            </MudButton>
+        </MudPaper>
+    };
+
+    // ── Lifecycle ────────────────────────────────────────────────────────
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Task.Delay(1);
+
+        _allTx      = await TxSvc.GetAllAsync();
+        _budgetCats = await BudgetSvc.GetCategoriesAsync();
+        _revCats    = await RevenueSvc.GetCategoriesAsync();
+        _drafts     = await PlannerSvc.GetDraftsAsync();
+
+        ComputeHistory();
+        _loading = false;
+        StateHasChanged();
+    }
+
+    // ── History computation ──────────────────────────────────────────────
+
+    private void ComputeHistory()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+
+        // Find up to 3 contiguous past months that have data
+        var months = new List<DateOnly>();
+        for (var i = 1; i <= 3; i++)
+        {
+            var m = today.AddMonths(-i);
+            if (_allTx.Any(t => t.Date.Year == m.Year && t.Date.Month == m.Month))
+                months.Add(m);
+            else
+                break;
+        }
+
+        if (months.Count == 0) return;
+
+        _histExpense = _allTx
+            .Where(t => !t.IsRevenue && t.Amount > 0 &&
+                        months.Any(m => t.Date.Year == m.Year && t.Date.Month == m.Month))
+            .GroupBy(t => t.Category ?? "Unclassified")
+            .ToDictionary(g => g.Key, g => Math.Round(g.Sum(t => t.Amount) / months.Count, 0));
+
+        _histRevenue = _allTx
+            .Where(t => t.IsRevenue &&
+                        months.Any(m => t.Date.Year == m.Year && t.Date.Month == m.Month))
+            .GroupBy(t => t.Category ?? "Unclassified")
+            .ToDictionary(g => g.Key, g => Math.Round(g.Sum(t => -t.Amount) / months.Count, 0));
+
+        // Build import options (1, 2, 3 months if contiguous data exists)
+        _importOptions = [];
+        for (var n = 1; n <= months.Count; n++)
+        {
+            var slice = months.Take(n).ToList();
+            var label = n == 1
+                ? slice[0].ToString("MMMM yyyy", CultureInfo.InvariantCulture)
+                : $"{slice[^1].ToString("MMM", CultureInfo.InvariantCulture)} – {slice[0].ToString("MMM yyyy", CultureInfo.InvariantCulture)}";
+            _importOptions.Add((n, label));
+        }
+
+        // Show longest range first
+        _importOptions.Reverse();
+    }
+
+    // ── Draft management ─────────────────────────────────────────────────
+
+    private async Task AddDraft()
+    {
+        var n = _drafts.Count + 1;
+        _drafts.Add(new BudgetDraft { Name = $"Draft {n}" });
+        _activeIdx = _drafts.Count - 1;
+        await SaveAsync();
+    }
+
+    private async Task DeleteDraftAsync(int idx)
+    {
+        _drafts.RemoveAt(idx);
+        _activeIdx = Math.Max(0, Math.Min(_activeIdx, _drafts.Count - 1));
+        await SaveAsync();
+    }
+
+    private async Task ImportAsync(int months, string label)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var targetMonths = Enumerable.Range(1, months)
+            .Select(i => today.AddMonths(-i))
+            .ToList();
+
+        var colorMap = _budgetCats.ToDictionary(c => c.Name, c => c.Color, StringComparer.OrdinalIgnoreCase);
+
+        var expenses = _allTx
+            .Where(t => !t.IsRevenue && t.Amount > 0 &&
+                        targetMonths.Any(m => t.Date.Year == m.Year && t.Date.Month == m.Month))
+            .GroupBy(t => t.Category ?? "Unclassified")
+            .Select(g => new DraftRow
+            {
+                Name   = g.Key,
+                Color  = colorMap.GetValueOrDefault(g.Key, "#594AE2"),
+                Amount = Math.Round(g.Sum(t => t.Amount) / months, 0)
+            })
+            .OrderByDescending(r => r.Amount)
+            .ToList();
+
+        var revColorMap = _revCats.ToDictionary(c => c.Name, c => c.Color, StringComparer.OrdinalIgnoreCase);
+
+        var revenue = _allTx
+            .Where(t => t.IsRevenue &&
+                        targetMonths.Any(m => t.Date.Year == m.Year && t.Date.Month == m.Month))
+            .GroupBy(t => t.Category ?? "Unclassified")
+            .Select(g => new DraftRow
+            {
+                Name   = g.Key,
+                Color  = revColorMap.GetValueOrDefault(g.Key, "#4CAF50"),
+                Amount = Math.Round(g.Sum(t => -t.Amount) / months, 0)
+            })
+            .OrderByDescending(r => r.Amount)
+            .ToList();
+
+        var draft = new BudgetDraft
+        {
+            Name     = $"Import {label}",
+            Expenses = expenses,
+            Revenue  = revenue
+        };
+
+        _drafts.Add(draft);
+        _activeIdx = _drafts.Count - 1;
+        await SaveAsync();
+    }
+
+    private Task SaveAsync() => PlannerSvc.SaveDraftsAsync(_drafts);
+}

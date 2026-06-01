@@ -33,7 +33,18 @@ app.UseCors();
 
 // Ensure schema exists on every startup (idempotent)
 using (var scope = app.Services.CreateScope())
-    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+    // EnsureCreated won't add new tables to an existing DB, so create any new ones explicitly
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS BudgetDrafts (
+            Id           TEXT NOT NULL PRIMARY KEY,
+            Name         TEXT NOT NULL DEFAULT '',
+            ExpensesJson TEXT NOT NULL DEFAULT '[]',
+            RevenueJson  TEXT NOT NULL DEFAULT '[]'
+        )");
+}
 
 // ---------------------------------------------------------------------------
 // Health
@@ -198,6 +209,35 @@ app.MapPost("/api/closed-months", async (CloseMonthRequest req, AppDbContext db)
 });
 
 // ---------------------------------------------------------------------------
+// Budget drafts
+// ---------------------------------------------------------------------------
+var draftJsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+app.MapGet("/api/budget-drafts", async (AppDbContext db) =>
+    (await db.BudgetDrafts.ToListAsync()).Select(e => new
+    {
+        e.Id,
+        e.Name,
+        Expenses = JsonSerializer.Deserialize<object[]>(e.ExpensesJson, draftJsonOpts) ?? Array.Empty<object>(),
+        Revenue  = JsonSerializer.Deserialize<object[]>(e.RevenueJson,  draftJsonOpts) ?? Array.Empty<object>()
+    }));
+
+app.MapPut("/api/budget-drafts", async (BudgetDraftDto[] incoming, AppDbContext db) =>
+{
+    db.BudgetDrafts.RemoveRange(await db.BudgetDrafts.ToListAsync());
+    foreach (var d in incoming)
+        db.BudgetDrafts.Add(new BudgetDraftEntity
+        {
+            Id           = d.Id,
+            Name         = d.Name,
+            ExpensesJson = JsonSerializer.Serialize(d.Expenses),
+            RevenueJson  = JsonSerializer.Serialize(d.Revenue)
+        });
+    await db.SaveChangesAsync();
+    return Results.Ok();
+});
+
+// ---------------------------------------------------------------------------
 // AI classification
 // ---------------------------------------------------------------------------
 app.MapPost("/api/classify", async (ClassifyRequest req, CancellationToken ct) =>
@@ -318,6 +358,17 @@ class ClosedMonthEntry
     public string MonthKey { get; set; } = "";     // PK, e.g. "2025-01"
 }
 
+class BudgetDraftEntity
+{
+    public Guid   Id           { get; set; } = Guid.NewGuid();
+    public string Name         { get; set; } = "";
+    public string ExpensesJson { get; set; } = "[]";
+    public string RevenueJson  { get; set; } = "[]";
+}
+
+record DraftRowDto(string Name, string Color, decimal Amount);
+record BudgetDraftDto(Guid Id, string Name, DraftRowDto[] Expenses, DraftRowDto[] Revenue);
+
 // ---------------------------------------------------------------------------
 // DbContext
 // ---------------------------------------------------------------------------
@@ -328,6 +379,7 @@ class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     public DbSet<RevenueCategoryEntity>RevenueCategories=> Set<RevenueCategoryEntity>();
     public DbSet<MerchantEntry>        MerchantCache    => Set<MerchantEntry>();
     public DbSet<ClosedMonthEntry>     ClosedMonths     => Set<ClosedMonthEntry>();
+    public DbSet<BudgetDraftEntity>    BudgetDrafts     => Set<BudgetDraftEntity>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -336,6 +388,7 @@ class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
         mb.Entity<RevenueCategoryEntity>().ToTable("RevenueCategories");
         mb.Entity<MerchantEntry>().ToTable("MerchantCache").HasKey(m => m.Description);
         mb.Entity<ClosedMonthEntry>().ToTable("ClosedMonths").HasKey(c => c.MonthKey);
+        mb.Entity<BudgetDraftEntity>().ToTable("BudgetDrafts");
     }
 }
 

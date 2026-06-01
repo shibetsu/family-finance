@@ -8,31 +8,43 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 
 ## Features
 
+### Global Month Picker
+- The month selector lives in the **top app bar** and is shared across all pages — changing it on one page changes it everywhere
+- Prev/next chevrons navigate month by month; the forward arrow is disabled on the current month
+- The selected month is reflected in the URL (`?month=yyyy-MM`) for deep linking and browser back/forward support
+
 ### Dashboard
 - **Summary cards** — monthly budget, total spent, remaining budget, transaction count, revenue, and net balance
 - **Spending by Category** — donut chart; click a slice (or the center label) to jump to that category's transactions for the current month
 - **6-Month Trend** — line chart showing expenses and revenue over the last six months
-- **Expense & Revenue breakdowns** — per-category tables with budget progress bars; category names are clickable and navigate to the Transactions page pre-filtered to that category and month
-- **Persistent month** — the selected month is remembered when navigating between pages and restored on browser back
+- **Expense & Revenue breakdowns** — per-category tables with budget progress bars, transaction counts, and per-transaction averages; category names are clickable and navigate to the Transactions page pre-filtered to that category and month
+- **Ignored transactions** — a collapsible panel at the bottom lists all transactions belonging to ignored categories for the selected month, showing total ignored expenses and revenue; helps audit what is excluded from your totals
 
 ### Transactions
 - **Import from AccèsD** — paste the transaction table from the AccèsD portal; the parser auto-detects the format (standard credit card, BONIDOLLARS credit card, or debit account); the Import & Classify button activates as soon as text is pasted
 - **AI classification** — a local Claude server classifies each expense into your budget categories automatically; previously seen merchants are cached and applied instantly (no extra HTTP call per transaction)
 - **Revenue auto-detection** — transactions where money comes in (negative amounts) are automatically treated as revenue; choose the revenue category directly in the import review table
 - **Inline category editing** — change the category on any confirmed transaction from the table; updates the merchant cache so future imports are pre-classified correctly
-- **Mass delete** — select multiple transactions with checkboxes and delete them in one action
-- **Month filter** — navigate month by month with prev/next arrows; selected month is remembered across navigation and browser back
+- **Mass delete** — select multiple transactions with checkboxes (with indeterminate header state) and delete them in one action
 - **Category filter** — click the filter icon (funnel) in the Category column header to open a checkbox popover; active filter is indicated by a filled blue icon; filters are preserved when navigating away and back
 - **Sort** — click the Date, Category, or Amount column headers to sort; Date defaults to newest first
 - **Close Month** — lock a past month to prevent any further edits; useful when you later rename categories or adjust budgets without affecting historical records
 
 ### Budget Categories
 - Create and manage expense categories (name, monthly budget amount, color)
-- Mark a category as ignored to exclude it from dashboard totals
+- Mark a category as ignored to exclude it from dashboard totals and charts
 
 ### Revenue Categories
 - Create and manage income categories (name, color)
 - Mark a category as ignored to exclude it from dashboard totals
+
+### Budget Planner *(new)*
+- **Multiple drafts** — create as many budget scenarios as you want; drafts are named, renameable, and deletable from a tab bar
+- **Import from history** — the "Import history" menu detects up to 3 contiguous past months with transaction data and offers to create a draft pre-populated with averaged actual spending per category (preserving real category colors and ordering by amount)
+- **Inline editing** — edit category names, amounts (numeric field), and colors (native color picker overlaid on the color dot) directly in the table without a modal
+- **Historical reference column** — each row shows the actual 3-month average alongside the draft amount; the reference is color-coded (green = under, warning = over) with a tooltip showing the exact difference
+- **Live summary** — Monthly Budget, Monthly Revenue, and Net cards update as you type
+- **Isolated data** — drafts are stored in the SQLite database (`BudgetDrafts` table) but never affect your real budget categories, revenue categories, or transactions
 
 ---
 
@@ -44,17 +56,20 @@ family-finance/
 │   ├── Components/
 │   │   ├── DashboardTab.razor
 │   │   ├── TransactionsTab.razor
-│   │   ├── ImportDialog.razor  # Import + pending review modal
+│   │   ├── ImportDialog.razor
 │   │   ├── BudgetTab.razor
 │   │   ├── RevenueTab.razor
 │   │   ├── CategoryDialog.razor
 │   │   └── RevenueCategoryDialog.razor
 │   ├── Layout/
-│   │   └── MainLayout.razor    # App shell, drawer, MudBlazor theme
+│   │   └── MainLayout.razor    # App shell, global month picker, drawer, theme
 │   ├── Models/
 │   │   ├── Transaction.cs
 │   │   ├── BudgetCategory.cs
-│   │   └── RevenueCategory.cs
+│   │   ├── RevenueCategory.cs
+│   │   └── BudgetDraft.cs      # Draft + DraftRow models for Budget Planner
+│   ├── Pages/
+│   │   └── BudgetPlanner.razor # Budget scenario builder
 │   ├── Services/
 │   │   ├── LocalStorageService.cs      # JS interop — dark mode pref only
 │   │   ├── TransactionService.cs       # Transaction CRUD (via HTTP, in-memory cache)
@@ -63,10 +78,12 @@ family-finance/
 │   │   ├── MerchantCacheService.cs     # Description → category memory (bulk-loaded, in-memory)
 │   │   ├── ClosedMonthService.cs       # Month lock tracking (via HTTP, in-memory cache)
 │   │   ├── ClaudeService.cs            # AI classification (via HTTP)
-│   │   ├── TransactionFilterState.cs   # Persists transaction page month + category filter across navigation
-│   │   ├── DashboardState.cs           # Persists dashboard month across navigation
+│   │   ├── MonthState.cs               # Global selected month — shared across all pages
+│   │   ├── TransactionFilterState.cs   # Persists transaction page category filter across navigation
+│   │   ├── BudgetPlannerService.cs     # Draft CRUD (via HTTP)
 │   │   └── DesjardinsParser.cs         # AccèsD paste parser
-│   └── wwwroot/                        # Static assets, favicon, manifest
+│   ├── NavIcons.cs             # SVG letter-in-box nav icons matching the app logo
+│   └── wwwroot/                # Static assets, PWA icons, manifest
 │
 └── FinTool.Server/             # ASP.NET Core API — SQLite database + AI bridge
     └── Program.cs              # EF Core DbContext, REST endpoints, Claude runner
@@ -146,13 +163,17 @@ Each category has a name, a monthly budget amount, and a color used in charts.
 
 ### 3. Edit categories later
 
-Open the **Transactions** tab, navigate to the relevant month, and use the dropdown in each row's Category column to reassign it. Changes are saved immediately.
+Open the **Transactions** tab, navigate to the relevant month using the **month picker in the top bar**, and use the dropdown in each row's Category column to reassign it. Changes are saved immediately.
 
 ### 4. Close a month
 
 Once a month is fully reviewed, click **Close Month** in the header. This locks all transactions in the currently viewed month — category dropdowns become read-only and the delete button is hidden. Locked months display a 🔒 icon next to the month name.
 
 This protects historical data when you later rename categories or adjust budget amounts.
+
+### 5. Plan future budgets
+
+Open the **Budget Planner** from the navigation drawer. Click **Import history** to create a draft seeded from your actual recent spending, or **New Draft** to start from scratch. You can maintain multiple named drafts and experiment freely — nothing here touches your real data.
 
 ---
 
@@ -169,10 +190,11 @@ All application data is persisted in a **SQLite database** managed by `FinTool.S
 | `RevenueCategories` | Income category definitions |
 | `MerchantCache` | Learned description → category mappings |
 | `ClosedMonths` | Locked month keys (`"yyyy-MM"`) |
+| `BudgetDrafts` | Budget Planner drafts (expenses + revenue stored as JSON columns) |
 
-The schema is created automatically on first startup via EF Core's `EnsureCreated()` — no migrations to run.
+The schema is created automatically on first startup via EF Core's `EnsureCreated()` plus explicit `CREATE TABLE IF NOT EXISTS` statements for tables added after the initial schema — no migrations to run.
 
-**Dark mode preference** is the only thing still stored in browser `localStorage` (key `fintool_darkmode`), since it is UI state that belongs to the browser, not the database.
+**Dark mode preference** is the only thing stored in browser `localStorage` (key `fintool_darkmode`), since it is UI state that belongs to the browser, not the database.
 
 > Because data lives in the SQLite file, it is device-specific but browser-independent. Back up or copy `family-finance.db` to migrate to another machine.
 
@@ -190,6 +212,7 @@ The schema is created automatically on first startup via EF Core's `EnsureCreate
 | `POST` | `/api/transactions/batch` | Import array; skips duplicates (same date + description + amount) |
 | `PUT` | `/api/transactions/{id}` | Update category / flags on one transaction |
 | `DELETE` | `/api/transactions/{id}` | Delete a transaction |
+| `POST` | `/api/transactions/batch-delete` | Delete multiple transactions by id array |
 
 ### Categories
 
@@ -201,6 +224,13 @@ The schema is created automatically on first startup via EF Core's `EnsureCreate
 | `GET` | `/api/revenue-categories` | All revenue categories |
 | `POST` | `/api/revenue-categories` | Create or update (upsert by Id) |
 | `DELETE` | `/api/revenue-categories/{id}` | Delete a revenue category |
+
+### Budget Planner
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/budget-drafts` | All saved drafts (expenses and revenue deserialized) |
+| `PUT` | `/api/budget-drafts` | Replace all drafts atomically |
 
 ### Merchant Cache & Closed Months
 

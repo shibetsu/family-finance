@@ -7,6 +7,8 @@
 @inject IDialogService DialogSvc
 @inject TransactionFilterState FilterState
 @inject NavigationManager Nav
+@inject MonthState MonthSvc
+@implements IDisposable
 
 <!-- Header -->
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
@@ -14,7 +16,7 @@
     <MudSpacer />
     <MudButton Variant="Variant.Outlined"
                StartIcon="@Icons.Material.Filled.Lock"
-               Disabled="@(_filterMonth >= _currentMonth || _isMonthClosed)"
+               Disabled="@(MonthSvc.Month >= MonthSvc.CurrentMonth || _isMonthClosed)"
                OnClick="CloseMonthAsync">
         Close Month
     </MudButton>
@@ -64,7 +66,7 @@ else if (_confirmed.Count > 0)
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
             <MudText Typo="Typo.subtitle1">
-                @_filterMonth.ToString("MMMM yyyy", CultureInfo.InvariantCulture) (@_filtered.Count)
+                @MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture) (@_filtered.Count)
             </MudText>
             @if (_isMonthClosed)
             {
@@ -82,9 +84,6 @@ else if (_confirmed.Count > 0)
                 Delete (@_selected.Count)
             </MudButton>
         }
-        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" OnClick="PrevMonth" />
-        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
-                       Disabled="@(_filterMonth >= _currentMonth)" OnClick="NextMonth" />
     </MudStack>
 
     @if (_filtered.Count > 0)
@@ -94,9 +93,8 @@ else if (_confirmed.Count > 0)
                 <MudTh Style="width:44px">
                     @if (!_isMonthClosed)
                     {
-                        <MudCheckBox T="bool"
-                                     Value="@_allSelected"
-                                     Indeterminate="@(!_noneSelected && !_allSelected)"
+                        <MudCheckBox T="bool?"
+                                     Value="@(_allSelected ? (bool?)true : _noneSelected ? (bool?)false : null)"
                                      ValueChanged="@(_ => ToggleSelectAll())"
                                      Size="Size.Small" />
                     }
@@ -216,7 +214,7 @@ else if (_confirmed.Count > 0)
     else
     {
         <MudAlert Severity="Severity.Info">
-            No transactions in @_filterMonth.ToString("MMMM yyyy", CultureInfo.InvariantCulture)@(_categoryFilter.Any() ? " matching the selected categories" : "").
+            No transactions in @MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)@(_categoryFilter.Any() ? " matching the selected categories" : "").
         </MudAlert>
     }
 }
@@ -235,8 +233,6 @@ else
     private List<Transaction> _filtered  = [];
     private List<BudgetCategory> _categories = [];
     private List<RevenueCategory> _revenueCategories = [];
-    private DateOnly _filterMonth;
-    private DateOnly _currentMonth;
     private HashSet<string> _categoryFilter  = [];
     private HashSet<string> _closedMonths    = [];
     private HashSet<Guid>   _selected        = [];
@@ -245,7 +241,7 @@ else
     private bool            _pendingFilter  = false;
 
     private bool _isMonthClosed =>
-        _closedMonths.Contains(ClosedMonthService.MonthKey(_filterMonth));
+        _closedMonths.Contains(ClosedMonthService.MonthKey(MonthSvc.Month));
 
     private bool _allSelected  => _filtered.Count > 0 && _selected.Count == _filtered.Count;
     private bool _noneSelected => _selected.Count == 0;
@@ -260,18 +256,11 @@ else
 
     protected override void OnInitialized()
     {
-        var today     = DateOnly.FromDateTime(DateTime.Now);
-        _currentMonth = new DateOnly(today.Year, today.Month, 1);
-        _filterMonth  = _currentMonth;
-
-        // Priority: URL params (dashboard link / browser back) → state service → default
         if (InitialMonth is not null &&
             DateOnly.TryParseExact(InitialMonth, "yyyy-MM",
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None, out var parsedMonth))
-            _filterMonth = parsedMonth;
-        else if (FilterState.Month.HasValue)
-            _filterMonth = FilterState.Month.Value;
+            MonthSvc.SetMonth(parsedMonth);
 
         if (!string.IsNullOrEmpty(InitialCategory))
             _categoryFilter = InitialCategory.Split(',')
@@ -295,6 +284,7 @@ else
             ApplyFilter();
             _loading     = false;
             _initialized = true;
+            MonthSvc.OnChange += OnMonthChanged;
             StateHasChanged();
             return;
         }
@@ -311,56 +301,55 @@ else
 
     protected override Task OnParametersSetAsync()
     {
-        // Only run after first init — handles browser back/forward replaying URL params
         if (!_initialized) return base.OnParametersSetAsync();
 
-        var newMonth = InitialMonth is not null &&
+        if (InitialMonth is not null &&
             DateOnly.TryParseExact(InitialMonth, "yyyy-MM",
                 System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out var pm)
-            ? pm : (DateOnly?)null;
+                System.Globalization.DateTimeStyles.None, out var pm))
+            MonthSvc.SetMonth(pm);
 
         var newCats = string.IsNullOrEmpty(InitialCategory)
             ? new HashSet<string>()
             : InitialCategory.Split(',').Select(c => c.Trim())
                 .Where(c => c.Length > 0).ToHashSet();
 
-        bool monthChanged = false;
-        bool changed      = false;
-        if (newMonth.HasValue && newMonth.Value != _filterMonth)
-            { _filterMonth = newMonth.Value; changed = true; monthChanged = true; }
         if (newCats.Count > 0 && !newCats.SetEquals(_categoryFilter))
-            { _categoryFilter = newCats; changed = true; }
-
-        if (changed)
         {
+            _categoryFilter = newCats;
             SaveState();
-            if (monthChanged) { _loading = true; _pendingFilter = true; }
-            else ApplyFilter();
+            ApplyFilter();
         }
+
         return base.OnParametersSetAsync();
     }
+
+    private void OnMonthChanged()
+    {
+        UpdateUrl();
+        _loading       = true;
+        _pendingFilter = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => MonthSvc.OnChange -= OnMonthChanged;
 
     private void ApplyFilter()
     {
         var q = _confirmed
-            .Where(t => t.Date.Year == _filterMonth.Year && t.Date.Month == _filterMonth.Month);
+            .Where(t => t.Date.Year == MonthSvc.Month.Year && t.Date.Month == MonthSvc.Month.Month);
         if (_categoryFilter.Count > 0)
             q = q.Where(t => _categoryFilter.Contains(t.Category ?? "Unclassified"));
         _filtered = q.ToList();
         _selected.IntersectWith(_filtered.Select(t => t.Id));
     }
 
-    private void SaveState()
-    {
-        FilterState.Month          = _filterMonth;
-        FilterState.CategoryFilter = _categoryFilter.ToHashSet();
-    }
+    private void SaveState() => FilterState.CategoryFilter = _categoryFilter.ToHashSet();
 
     private void UpdateUrl()
     {
         var cats = string.Join(",", _categoryFilter.OrderBy(x => x));
-        var url  = $"/transactions?month={_filterMonth:yyyy-MM}";
+        var url  = $"/transactions?month={MonthSvc.Month:yyyy-MM}";
         if (cats.Length > 0) url += $"&category={Uri.EscapeDataString(cats)}";
         Nav.NavigateTo(url, new NavigationOptions { ReplaceHistoryEntry = true });
     }
@@ -372,20 +361,17 @@ else
         SaveState(); UpdateUrl(); ApplyFilter();
     }
 
-    private void PrevMonth() { _filterMonth = _filterMonth.AddMonths(-1); SaveState(); UpdateUrl(); _loading = true; _pendingFilter = true; }
-    private void NextMonth() { _filterMonth = _filterMonth.AddMonths(1);  SaveState(); UpdateUrl(); _loading = true; _pendingFilter = true; }
-
     private async Task CloseMonthAsync()
     {
         var confirm = await DialogSvc.ShowMessageBox(
             "Close Month",
-            $"Lock all transactions for {_filterMonth.ToString("MMMM yyyy", CultureInfo.InvariantCulture)}? " +
+            $"Lock all transactions for {MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)}? " +
             "This will prevent any further edits to this month.",
             yesText: "Close Month", noText: "Cancel");
 
         if (confirm == true)
         {
-            await ClosedMonthSvc.CloseMonthAsync(_filterMonth);
+            await ClosedMonthSvc.CloseMonthAsync(MonthSvc.Month);
             _closedMonths = await ClosedMonthSvc.GetClosedAsync();
         }
     }

@@ -2,21 +2,11 @@
 @inject BudgetService BudgetSvc
 @inject RevenueCategoryService RevenueSvc
 @inject NavigationManager Nav
-@inject DashboardState DashState
+@inject MonthState MonthSvc
+@implements IDisposable
 @using System.Globalization
 
-<!-- ── Header + month navigation ───────────────────────────────────────── -->
-<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-6">
-    <MudText Typo="Typo.h5">Dashboard</MudText>
-    <MudSpacer />
-    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="PrevMonth" />
-    <MudText Typo="Typo.subtitle1" Style="min-width:160px;text-align:center">
-        @_month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)
-    </MudText>
-    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
-                   Disabled="@(_month >= _currentMonth)"
-                   OnClick="NextMonth" />
-</MudStack>
+<MudText Typo="Typo.h5" Class="mb-6">Dashboard</MudText>
 
 @if (_loading)
 {
@@ -198,7 +188,7 @@ else
     @if (!_hasData)
     {
         <MudAlert Severity="Severity.Info">
-            No transactions for @_month.ToString("MMMM yyyy", CultureInfo.InvariantCulture).
+            No transactions for @MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture).
         </MudAlert>
     }
     else
@@ -314,7 +304,7 @@ else
         @if (_revenueRows.Count > 0)
         {
             <MudText Typo="Typo.subtitle1" Class="mb-2">Revenue Breakdown</MudText>
-            <MudTable T="RevRow" Items="_revenueRows" Dense="true" Hover="true" Elevation="1">
+            <MudTable T="RevRow" Items="_revenueRows" Dense="true" Hover="true" Elevation="1" Class="mb-6">
                 <HeaderContent>
                     <MudTh>Category</MudTh>
                     <MudTh Style="text-align:right">Amount</MudTh>
@@ -344,6 +334,85 @@ else
                 </RowTemplate>
             </MudTable>
         }
+
+        <!-- ── Ignored Transactions ───────────────────────────────────── -->
+        @if (_ignoredTx.Count > 0)
+        {
+            <MudPaper Elevation="1" Class="pa-3">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="cursor:pointer"
+                          @onclick="@(() => _showIgnored = !_showIgnored)">
+                    <MudIcon Icon="@Icons.Material.Filled.VisibilityOff"
+                             Color="Color.Secondary" Size="Size.Small" />
+                    <MudText Typo="Typo.subtitle1" Color="Color.Secondary">
+                        Ignored Transactions
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        (@_ignoredTx.Count)
+                    </MudText>
+                    <MudSpacer />
+                    @if (_ignoredExpenseTotal > 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary"
+                                 Style="border:1px solid var(--mud-palette-divider);border-radius:4px;padding:2px 8px">
+                            −@Fmt(_ignoredExpenseTotal)
+                        </MudText>
+                    }
+                    @if (_ignoredRevenueTotal > 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary"
+                                 Style="border:1px solid var(--mud-palette-divider);border-radius:4px;padding:2px 8px">
+                            +@Fmt(_ignoredRevenueTotal)
+                        </MudText>
+                    }
+                    <MudIconButton Icon="@(_showIgnored ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                   Size="Size.Small" Color="Color.Secondary" />
+                </MudStack>
+
+                @if (_showIgnored)
+                {
+                    <MudDivider Class="my-2" />
+                    <MudTable T="Transaction" Items="_ignoredTx" Dense="true" Hover="true"
+                              Elevation="0" Style="opacity:0.8">
+                        <HeaderContent>
+                            <MudTh>Date</MudTh>
+                            <MudTh>Description</MudTh>
+                            <MudTh>Category</MudTh>
+                            <MudTh Style="text-align:right">Amount</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            @{
+                                var color = _categoryColorMap.GetValueOrDefault(context.Category ?? "", "#9E9E9E");
+                            }
+                            <MudTd DataLabel="Date">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    @context.Date.ToString("MMM d", CultureInfo.InvariantCulture)
+                                </MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Description">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary"
+                                         Style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                                    @context.Description
+                                </MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Category">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle"
+                                             Style="@($"color:{color};opacity:0.6")" Size="Size.Small" />
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        @(context.Category ?? "—")
+                                    </MudText>
+                                </MudStack>
+                            </MudTd>
+                            <MudTd DataLabel="Amount" Style="text-align:right">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    @(context.IsRevenue ? $"+{Fmt(-context.Amount)}" : Fmt(context.Amount))
+                                </MudText>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        }
     }
 }
 
@@ -352,11 +421,9 @@ else
 
     private static readonly CultureInfo _cad = CultureInfo.GetCultureInfo("en-CA");
 
-    private DateOnly _month;
-    private DateOnly _currentMonth;
-    private bool     _initialized    = false;
-    private bool     _loading        = true;
-    private bool     _pendingCompute = false;
+    private bool _initialized    = false;
+    private bool _loading        = true;
+    private bool _pendingCompute = false;
 
     private List<BudgetCategory>  _categories        = [];
     private List<RevenueCategory> _revenueCategories = [];
@@ -368,8 +435,13 @@ else
     private decimal _totalRevenue;
     private int     _txCount;
 
-    private List<CatRow> _categoryRows = [];
-    private List<RevRow> _revenueRows  = [];
+    private List<CatRow>      _categoryRows = [];
+    private List<RevRow>      _revenueRows  = [];
+    private List<Transaction> _ignoredTx    = [];
+    private decimal           _ignoredExpenseTotal;
+    private decimal           _ignoredRevenueTotal;
+    private bool              _showIgnored = true;
+    private Dictionary<string,string> _categoryColorMap = [];
 
     private double[]          _donutData          = [];
     private string[]          _donutLabels        = [];
@@ -381,17 +453,10 @@ else
 
     protected override void OnInitialized()
     {
-        var today     = DateOnly.FromDateTime(DateTime.Now);
-        _currentMonth = new DateOnly(today.Year, today.Month, 1);
-
         if (InitialMonth is not null &&
             DateOnly.TryParseExact(InitialMonth, "yyyy-MM",
                 CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
-            _month = parsed;
-        else if (DashState.Month.HasValue)
-            _month = DashState.Month.Value;
-        else
-            _month = _currentMonth;
+            MonthSvc.SetMonth(parsed);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -402,10 +467,10 @@ else
             _categories        = await BudgetSvc.GetCategoriesAsync();
             _revenueCategories = await RevenueSvc.GetCategoriesAsync();
             _allTx             = await TxSvc.GetAllAsync();
-            SaveState();
             Compute();
             _loading     = false;
             _initialized = true;
+            MonthSvc.OnChange += OnMonthChanged;
             StateHasChanged();
             return;
         }
@@ -426,32 +491,30 @@ else
 
         if (InitialMonth is not null &&
             DateOnly.TryParseExact(InitialMonth, "yyyy-MM",
-                CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed) &&
-            parsed != _month)
-        {
-            _month = parsed;
-            SaveState();
-            _loading        = true;
-            _pendingCompute = true;
-        }
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+            MonthSvc.SetMonth(parsed);
+
         return base.OnParametersSetAsync();
     }
 
-    private void SaveState() => DashState.Month = _month;
-
-    private void UpdateUrl()
+    private void OnMonthChanged()
     {
-        Nav.NavigateTo($"/?month={_month:yyyy-MM}",
-            new NavigationOptions { ReplaceHistoryEntry = true });
+        UpdateUrl();
+        _loading        = true;
+        _pendingCompute = true;
+        InvokeAsync(StateHasChanged);
     }
 
-    private void PrevMonth() { _month = _month.AddMonths(-1); SaveState(); UpdateUrl(); _loading = true; _pendingCompute = true; }
-    private void NextMonth() { _month = _month.AddMonths(1);  SaveState(); UpdateUrl(); _loading = true; _pendingCompute = true; }
+    private void UpdateUrl() =>
+        Nav.NavigateTo($"/?month={MonthSvc.Month:yyyy-MM}",
+            new NavigationOptions { ReplaceHistoryEntry = true });
+
+    public void Dispose() => MonthSvc.OnChange -= OnMonthChanged;
 
     private void Compute()
     {
         var monthTx = _allTx
-            .Where(t => t.Date.Year == _month.Year && t.Date.Month == _month.Month)
+            .Where(t => t.Date.Year == MonthSvc.Month.Year && t.Date.Month == MonthSvc.Month.Month)
             .ToList();
 
         // Ignored category name sets — these are excluded from all totals and charts
@@ -459,6 +522,23 @@ else
             .Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var ignoredRevenue = _revenueCategories.Where(c => c.IsIgnored)
             .Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Build a color map for ignored-transaction rows
+        _categoryColorMap = _categories
+            .ToDictionary(c => c.Name, c => c.Color, StringComparer.OrdinalIgnoreCase);
+        foreach (var rc in _revenueCategories)
+            _categoryColorMap.TryAdd(rc.Name, rc.Color);
+
+        // Collect ignored transactions for display
+        _ignoredTx = monthTx
+            .Where(t =>
+                (!t.IsRevenue && t.Amount > 0 && ignoredBudget.Contains(t.Category ?? "")) ||
+                (t.IsRevenue && ignoredRevenue.Contains(t.Category ?? "")))
+            .OrderBy(t => t.Date)
+            .ThenBy(t => t.Description)
+            .ToList();
+        _ignoredExpenseTotal = _ignoredTx.Where(t => !t.IsRevenue).Sum(t => t.Amount);
+        _ignoredRevenueTotal = _ignoredTx.Where(t => t.IsRevenue).Sum(t => -t.Amount);
 
         _txCount      = monthTx.Count;
         _totalBudget  = _categories.Where(c => !c.IsIgnored).Sum(c => c.MonthlyAmount);
@@ -525,7 +605,7 @@ else
 
         // ── Trend: last 6 months, expenses AND revenue ──────────────────
         _trendLabels = Enumerable.Range(0, 6)
-            .Select(i => _month.AddMonths(i - 5).ToString("MMM yy", CultureInfo.InvariantCulture))
+            .Select(i => MonthSvc.Month.AddMonths(i - 5).ToString("MMM yy", CultureInfo.InvariantCulture))
             .ToArray();
 
         _trendSeries =
@@ -535,7 +615,7 @@ else
                 Name = "Expenses",
                 Data = Enumerable.Range(0, 6).Select(i =>
                 {
-                    var m = _month.AddMonths(i - 5);
+                    var m = MonthSvc.Month.AddMonths(i - 5);
                     return (double)_allTx
                         .Where(t => t.Date.Year == m.Year && t.Date.Month == m.Month
                                  && t.Amount > 0 && !t.IsRevenue)
@@ -547,7 +627,7 @@ else
                 Name = "Revenue",
                 Data = Enumerable.Range(0, 6).Select(i =>
                 {
-                    var m = _month.AddMonths(i - 5);
+                    var m = MonthSvc.Month.AddMonths(i - 5);
                     return (double)_allTx
                         .Where(t => t.Date.Year == m.Year && t.Date.Month == m.Month && t.IsRevenue)
                         .Sum(t => -t.Amount);
@@ -564,7 +644,7 @@ else
 
     private void GoToCategory(string categoryName)
     {
-        var month    = _month.ToString("yyyy-MM");
+        var month    = MonthSvc.Month.ToString("yyyy-MM");
         var category = Uri.EscapeDataString(categoryName);
         Nav.NavigateTo($"/transactions?month={month}&category={category}");
     }

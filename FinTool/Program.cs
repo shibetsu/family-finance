@@ -20,6 +20,7 @@ builder.Services.AddScoped<RevenueCategoryService>();
 builder.Services.AddScoped<ClaudeService>();
 builder.Services.AddScoped<ClosedMonthService>();
 builder.Services.AddScoped<TransactionFilterState>();
-builder.Services.AddScoped<DashboardState>();
+builder.Services.AddScoped<MonthState>();
+builder.Services.AddScoped<BudgetPlannerService>();
 
 await builder.Build().RunAsync();
