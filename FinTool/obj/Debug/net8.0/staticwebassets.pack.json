@@ -37,6 +37,14 @@
       "PackagePath": "staticwebassets\\favicon.png"
     },
     {
+      "Id": "C:\\Users\\Admin\\Documents\\fintool\\FinTool\\wwwroot\\fintool.ico",
+      "PackagePath": "staticwebassets\\fintool.ico"
+    },
+    {
+      "Id": "C:\\Users\\Admin\\Documents\\fintool\\FinTool\\wwwroot\\fintool_preview.png",
+      "PackagePath": "staticwebassets\\fintool_preview.png"
+    },
+    {
       "Id": "C:\\Users\\Admin\\Documents\\fintool\\FinTool\\wwwroot\\icon-192.png",
       "PackagePath": "staticwebassets\\icon-192.png"
     },

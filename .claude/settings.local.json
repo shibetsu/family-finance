@@ -4,7 +4,13 @@
       "PowerShell(dotnet --version; dotnet --list-sdks)",
       "PowerShell(dotnet new blazorwasm *)",
       "PowerShell(Get-ChildItem -Recurse \"C:\\\\Users\\\\Admin\\\\Documents\\\\fintool\\\\FinTool\" | Where-Object { !$_.PSIsContainer } | Select-Object FullName | Sort-Object FullName)",
-      "PowerShell(Select-String *)"
+      "PowerShell(Select-String *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Admin\\\\Documents\\\\fintool\" -Recurse -Depth 2)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)",
+      "Bash(git push *)"
     ]
   }
 }

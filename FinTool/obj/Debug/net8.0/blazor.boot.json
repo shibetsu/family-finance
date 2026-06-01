@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "FinTool",
   "resources": {
-    "hash": "sha256-/N1osfvsDpf5cXC5Xze7P+JshoTlG2kGkXNaVMPnEbc=",
+    "hash": "sha256-6QojmqxrKmOTdWR8DXgsB/XMj0rxzBM4txjAo/VD5/M=",
     "jsModuleNative": {
       "dotnet.native.8.0.27.traa6y53v2.js": "sha256-sn/g61GjVPhViOYQDkq1OMlk0eyS9r2Hi0qgU2o0HIU="
     },
@@ -211,10 +211,10 @@
       "mscorlib.wasm": "sha256-YI5F+NHcYCSuCGvvp5vyTL2orAoMlXo4ep5foTyMfeg=",
       "netstandard.wasm": "sha256-jVzOxH5q4FYYDM01Qwoa/2MjK7CwbDVo6rPFjrBorII=",
       "System.Private.CoreLib.wasm": "sha256-d+N5gZbidgB9OgmPuYn1T6BQWHjajGzz+AvKnZJ+zmA=",
-      "FinTool.wasm": "sha256-FwHcHzNfYp0nOtLQ053PMzAsq8jdHUpC7yU+K1urT1M="
+      "FinTool.wasm": "sha256-CDwN616AjfvPaWxa4n4Cj8blNNqrQeRrBrY76RD0Bb4="
     },
     "pdb": {
-      "FinTool.pdb": "sha256-VHt2l+ZAVMJrdqcqw9sUp1qdKgHCCWM34sid5FqQzuc="
+      "FinTool.pdb": "sha256-kJu9+ctnnHnygXalSzrh7p9scsyJObwc61qhHeP/XwY="
     }
   },
   "cacheBootResources": true,

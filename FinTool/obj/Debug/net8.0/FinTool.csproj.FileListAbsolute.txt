@@ -1047,3 +1047,4 @@ C:\Users\Admin\Documents\fintool\FinTool\obj\Debug\net8.0\FinTool.dll
 C:\Users\Admin\Documents\fintool\FinTool\obj\Debug\net8.0\refint\FinTool.dll
 C:\Users\Admin\Documents\fintool\FinTool\obj\Debug\net8.0\FinTool.pdb
 C:\Users\Admin\Documents\fintool\FinTool\obj\Debug\net8.0\ref\FinTool.dll
+C:\Users\Admin\Documents\fintool\FinTool\obj\Debug\net8.0\FinTool.sourcelink.json
