@@ -10,14 +10,15 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 
 ### Dashboard
 - **Summary cards** — monthly budget, total spent, remaining budget, transaction count, revenue, and net balance
-- **Spending by Category** — donut chart; hover a slice to see the category total
+- **Spending by Category** — donut chart; hover a slice to see the category name and total in the center of the ring
 - **6-Month Trend** — line chart showing expenses and revenue over the last six months
 - **Expense & Revenue breakdowns** — per-category tables with budget progress bars
 
 ### Transactions
 - **Import from AccèsD** — paste the transaction table from the AccèsD portal; the parser auto-detects the format (standard credit card, BONIDOLLARS credit card, or debit account)
 - **AI classification** — a local Claude server classifies each expense into your budget categories automatically; previously seen merchants are cached and applied instantly
-- **Inline category editing** — change the category on any confirmed transaction from the table
+- **Inline category editing** — change the category on any confirmed transaction from the table; updates the merchant cache so future imports are pre-classified correctly
+- **Mass delete** — select multiple transactions with checkboxes and delete them in one action
 - **Month filter** — navigate month by month with prev/next arrows
 - **Category filter** — multi-select dropdown to show only certain categories
 - **Date sort** — click the Date column header; defaults to newest first
