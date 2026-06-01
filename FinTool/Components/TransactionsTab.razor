@@ -282,8 +282,7 @@ else
 
         if (confirm != true) return;
 
-        foreach (var id in _selected.ToList())
-            await TxSvc.DeleteAsync(id);
+        await TxSvc.DeleteBatchAsync(_selected);
 
         _confirmed.RemoveAll(t => _selected.Contains(t.Id));
         _selected.Clear();

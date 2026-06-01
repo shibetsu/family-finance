@@ -21,5 +21,8 @@ public class TransactionService(HttpClient http)
     public async Task DeleteAsync(Guid id) =>
         await http.DeleteAsync($"api/transactions/{id}");
 
+    public async Task DeleteBatchAsync(IEnumerable<Guid> ids) =>
+        await http.PostAsJsonAsync("api/transactions/batch-delete", ids.ToArray());
+
     private record BatchResult(int Added);
 }

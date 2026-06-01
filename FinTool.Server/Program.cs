@@ -85,6 +85,12 @@ app.MapDelete("/api/transactions/{id:guid}", async (Guid id, AppDbContext db) =>
     return Results.Ok();
 });
 
+app.MapPost("/api/transactions/batch-delete", async (Guid[] ids, AppDbContext db) =>
+{
+    await db.Transactions.Where(t => ids.Contains(t.Id)).ExecuteDeleteAsync();
+    return Results.Ok();
+});
+
 // ---------------------------------------------------------------------------
 // Budget categories
 // ---------------------------------------------------------------------------
