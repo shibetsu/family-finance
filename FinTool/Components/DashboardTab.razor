@@ -125,10 +125,10 @@ else
     }
     else
     {
-        <!-- ── Donut + Bar ─────────────────────────────────────────────── -->
+        <!-- ── Donut + Trend ──────────────────────────────────────────── -->
         <MudGrid Class="mb-6">
-            <MudItem xs="12" md="5">
-                <MudPaper Elevation="1" Class="pa-4">
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="1" Class="pa-4" Style="height: 100%">
                     <MudText Typo="Typo.subtitle1" Class="mb-1">Spending by Category</MudText>
                     @if (_donutData.Length > 0)
                     {
@@ -136,7 +136,11 @@ else
                                   InputData="@_donutData"
                                   InputLabels="@_donutLabels"
                                   ChartOptions="@_donutOptions"
+                                  @bind-SelectedIndex="_selectedDonutIndex"
                                   Width="100%" Height="280px" />
+                        <MudText Align="Align.Center" Typo="Typo.subtitle2" Class="mt-2">
+                            @_donutLabels[_selectedDonutIndex]: @Fmt((decimal)_donutData[_selectedDonutIndex])
+                        </MudText>
                     }
                     else
                     {
@@ -144,34 +148,17 @@ else
                     }
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" md="7">
-                <MudPaper Elevation="1" Class="pa-4">
-                    <MudText Typo="Typo.subtitle1" Class="mb-1">Budget vs Actual</MudText>
-                    @if (_barLabels.Length > 0)
-                    {
-                        <MudChart ChartType="ChartType.Bar"
-                                  ChartSeries="@_barSeries"
-                                  XAxisLabels="@_barLabels"
-                                  ChartOptions="@_barOptions"
-                                  Width="100%" Height="280px" />
-                    }
-                    else
-                    {
-                        <MudText Color="Color.Secondary" Class="mt-4">Add budget categories to see this chart.</MudText>
-                    }
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="1" Class="pa-4" Style="height: 100%">
+                    <MudText Typo="Typo.subtitle1" Class="mb-1">6-Month Trend</MudText>
+                    <MudChart ChartType="ChartType.Line"
+                              ChartSeries="@_trendSeries"
+                              XAxisLabels="@_trendLabels"
+                              ChartOptions="@_trendOptions"
+                              Width="100%" Height="280px" />
                 </MudPaper>
             </MudItem>
         </MudGrid>
-
-        <!-- ── 6-month trend (expenses + revenue) ──────────────────────── -->
-        <MudPaper Elevation="1" Class="pa-4 mb-6">
-            <MudText Typo="Typo.subtitle1" Class="mb-1">6-Month Trend</MudText>
-            <MudChart ChartType="ChartType.Line"
-                      ChartSeries="@_trendSeries"
-                      XAxisLabels="@_trendLabels"
-                      ChartOptions="@_trendOptions"
-                      Width="100%" Height="220px" />
-        </MudPaper>
 
         <!-- ── Expense category breakdown ─────────────────────────────── -->
         <MudText Typo="Typo.subtitle1" Class="mb-2">Expense Breakdown</MudText>
@@ -266,13 +253,11 @@ else
     private List<CatRow> _categoryRows = [];
     private List<RevRow> _revenueRows  = [];
 
-    private double[]          _donutData    = [];
-    private string[]          _donutLabels  = [];
-    private ChartOptions      _donutOptions = new();
-    private List<ChartSeries> _barSeries    = [];
-    private string[]          _barLabels    = [];
-    private ChartOptions      _barOptions   = new();
-    private List<ChartSeries> _trendSeries  = [];
+    private double[]          _donutData          = [];
+    private string[]          _donutLabels        = [];
+    private ChartOptions      _donutOptions       = new();
+    private int               _selectedDonutIndex = 0;
+    private List<ChartSeries> _trendSeries        = [];
     private string[]          _trendLabels  = [];
     private ChartOptions      _trendOptions = new();
 
@@ -358,19 +343,6 @@ else
             ShowLegend   = true
         };
 
-        // ── Bar: all budget categories ──────────────────────────────────
-        _barLabels = _categoryRows.Select(r => ShortenLabel(r.Name)).ToArray();
-        _barSeries =
-        [
-            new ChartSeries { Name = "Budget", Data = _categoryRows.Select(r => (double)r.Budget).ToArray() },
-            new ChartSeries { Name = "Spent",  Data = _categoryRows.Select(r => (double)r.Spent).ToArray()  }
-        ];
-        _barOptions = new ChartOptions
-        {
-            ChartPalette = ["#BDBDBD", "#594AE2"],
-            YAxisFormat  = "C0"
-        };
-
         // ── Trend: last 6 months, expenses AND revenue ──────────────────
         _trendLabels = Enumerable.Range(0, 6)
             .Select(i => _month.AddMonths(i - 5).ToString("MMM yy", CultureInfo.InvariantCulture))
@@ -413,7 +385,7 @@ else
     private static string Fmt(decimal v) =>
         v.ToString("C0", CultureInfo.GetCultureInfo("en-CA"));
 
-    private static string ShortenLabel(string s) => s.Length > 12 ? s[..12] + "…" : s;
+
 
     private record CatRow(string Name, string Color, decimal Budget, decimal Spent);
     private record RevRow(string Name, string Color, decimal Amount);
