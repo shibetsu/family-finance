@@ -1,7 +1,7 @@
 ﻿self.assetsManifest = {
   "assets": [
     {
-      "hash": "sha256-2uoc+qIw352hFhOOL\/JknzjYgM49MWVWPoXLN1dATqo=",
+      "hash": "sha256-jXflA4vmp1RqmjrDBoPqU063XeQBajbi1rN9632RB4U=",
       "url": "css\/app.css"
     },
     {
@@ -33,7 +33,7 @@
       "url": "icon-512.png"
     },
     {
-      "hash": "sha256-KhI6\/EqURG0uAclVl3eSJLmGwR22ZZuT1UaOBtzA+Rk=",
+      "hash": "sha256-8TWHb8dUQizZOaZBaZ8E9bwLukDT9JSVJrLaY\/84NeY=",
       "url": "index.html"
     },
     {
@@ -861,15 +861,15 @@
       "url": "_framework\/icudt_no_CJK.dat"
     },
     {
-      "hash": "sha256-n1npdn8B++khFgUhrEO5E7keclfkNmxa3nBnEyr5XKE=",
+      "hash": "sha256-K2whHfAlrVBWDJF5GzrNAz6NnppNrvxSqsjKr6EWkwk=",
       "url": "_framework\/FinTool.wasm"
     },
     {
-      "hash": "sha256-FUVL0WqcBVOK2vr5rVftzm6WIw891uwtb4Hq+axny4Y=",
+      "hash": "sha256-cC4wh2ZjhLt5zilF31LAFjMM1JNW7mdprThc0RhTEp0=",
       "url": "_framework\/FinTool.pdb"
     },
     {
-      "hash": "sha256-Z\/Rag3\/IBmuwQq+0MPuBHV2mmjo\/aMwzyhXndKvubAs=",
+      "hash": "sha256-vbslu6ZlqeWP+dYbWQj9hsDx9kl1fDo2KZKEzYiiQos=",
       "url": "_framework\/blazor.boot.json"
     },
     {
@@ -881,5 +881,5 @@
       "url": "_content\/MudBlazor\/MudBlazor.min.js"
     }
   ],
-  "version": "7Y3koGrY"
+  "version": "rT9j+U0v"
 };

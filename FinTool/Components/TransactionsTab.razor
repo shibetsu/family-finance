@@ -26,7 +26,40 @@
 </MudStack>
 
 <!-- Confirmed transactions -->
-@if (_confirmed.Count > 0)
+@if (_loading)
+{
+    <LoadingOverlay />
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div class="sk" style="height:18px;width:180px"></div>
+        <div style="flex:1"></div>
+        <div class="sk" style="height:30px;width:30px;border-radius:50%"></div>
+        <div class="sk" style="height:30px;width:30px;border-radius:50%"></div>
+    </div>
+    <MudPaper Elevation="1" Class="overflow-hidden">
+        <!-- header -->
+        <div style="display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--mud-palette-table-lines)">
+            <div class="sk" style="height:13px;width:16px"></div>
+            <div class="sk" style="height:13px;width:70px"></div>
+            <div class="sk" style="height:13px;width:180px"></div>
+            <div class="sk" style="height:13px;width:100px"></div>
+            <div style="flex:1"></div>
+            <div class="sk" style="height:13px;width:65px"></div>
+        </div>
+        @for (var r = 0; r < 10; r++)
+        {
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--mud-palette-table-lines)">
+                <div class="sk" style="width:16px;height:16px;border-radius:3px;flex-shrink:0"></div>
+                <div class="sk" style="height:14px;width:80px;flex-shrink:0"></div>
+                <div class="sk" style="height:14px;width:@(r % 3 == 0 ? "220px" : r % 3 == 1 ? "160px" : "190px")"></div>
+                <div class="sk" style="height:28px;width:130px;border-radius:6px"></div>
+                <div style="flex:1"></div>
+                <div class="sk" style="height:14px;width:65px"></div>
+                <div class="sk" style="width:28px;height:28px;border-radius:50%"></div>
+            </div>
+        }
+    </MudPaper>
+}
+else if (_confirmed.Count > 0)
 {
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
@@ -207,7 +240,9 @@ else
     private HashSet<string> _categoryFilter  = [];
     private HashSet<string> _closedMonths    = [];
     private HashSet<Guid>   _selected        = [];
-    private bool            _initialized     = false;
+    private bool            _initialized    = false;
+    private bool            _loading        = true;
+    private bool            _pendingFilter  = false;
 
     private bool _isMonthClosed =>
         _closedMonths.Contains(ClosedMonthService.MonthKey(_filterMonth));
@@ -223,7 +258,7 @@ else
             .OrderBy(x => x);
 
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         var today     = DateOnly.FromDateTime(DateTime.Now);
         _currentMonth = new DateOnly(today.Year, today.Month, 1);
@@ -243,16 +278,35 @@ else
                 .Select(c => c.Trim()).Where(c => c.Length > 0).ToHashSet();
         else if (FilterState.CategoryFilter.Count > 0)
             _categoryFilter = FilterState.CategoryFilter.ToHashSet();
+    }
 
-        _categories        = await BudgetSvc.GetCategoriesAsync();
-        _revenueCategories = await RevenueSvc.GetCategoriesAsync();
-        _confirmed = (await TxSvc.GetAllAsync())
-            .OrderByDescending(t => t.Date).ThenBy(t => t.Description)
-            .ToList();
-        _closedMonths = await ClosedMonthSvc.GetClosedAsync();
-        SaveState();
-        ApplyFilter();
-        _initialized = true;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(1);
+            _categories        = await BudgetSvc.GetCategoriesAsync();
+            _revenueCategories = await RevenueSvc.GetCategoriesAsync();
+            _confirmed = (await TxSvc.GetAllAsync())
+                .OrderByDescending(t => t.Date).ThenBy(t => t.Description)
+                .ToList();
+            _closedMonths = await ClosedMonthSvc.GetClosedAsync();
+            SaveState();
+            ApplyFilter();
+            _loading     = false;
+            _initialized = true;
+            StateHasChanged();
+            return;
+        }
+
+        if (_pendingFilter)
+        {
+            _pendingFilter = false;
+            await Task.Delay(1);
+            ApplyFilter();
+            _loading = false;
+            StateHasChanged();
+        }
     }
 
     protected override Task OnParametersSetAsync()
@@ -271,13 +325,19 @@ else
             : InitialCategory.Split(',').Select(c => c.Trim())
                 .Where(c => c.Length > 0).ToHashSet();
 
-        bool changed = false;
+        bool monthChanged = false;
+        bool changed      = false;
         if (newMonth.HasValue && newMonth.Value != _filterMonth)
-            { _filterMonth = newMonth.Value; changed = true; }
+            { _filterMonth = newMonth.Value; changed = true; monthChanged = true; }
         if (newCats.Count > 0 && !newCats.SetEquals(_categoryFilter))
             { _categoryFilter = newCats; changed = true; }
 
-        if (changed) { SaveState(); ApplyFilter(); }
+        if (changed)
+        {
+            SaveState();
+            if (monthChanged) { _loading = true; _pendingFilter = true; }
+            else ApplyFilter();
+        }
         return base.OnParametersSetAsync();
     }
 
@@ -312,8 +372,8 @@ else
         SaveState(); UpdateUrl(); ApplyFilter();
     }
 
-    private void PrevMonth() { _filterMonth = _filterMonth.AddMonths(-1); SaveState(); UpdateUrl(); ApplyFilter(); }
-    private void NextMonth() { _filterMonth = _filterMonth.AddMonths(1);  SaveState(); UpdateUrl(); ApplyFilter(); }
+    private void PrevMonth() { _filterMonth = _filterMonth.AddMonths(-1); SaveState(); UpdateUrl(); _loading = true; _pendingFilter = true; }
+    private void NextMonth() { _filterMonth = _filterMonth.AddMonths(1);  SaveState(); UpdateUrl(); _loading = true; _pendingFilter = true; }
 
     private async Task CloseMonthAsync()
     {

@@ -18,7 +18,83 @@
                    OnClick="NextMonth" />
 </MudStack>
 
-@if (_categories.Count == 0 && !_hasData)
+@if (_loading)
+{
+    <LoadingOverlay />
+    <!-- 4 stat card skeletons -->
+    <MudGrid Class="mb-4">
+        @for (var i = 0; i < 4; i++)
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                        <div class="sk" style="width:38px;height:38px;border-radius:50%;flex-shrink:0"></div>
+                        <div style="flex:1;min-width:0">
+                            <div class="sk" style="height:11px;width:65%;margin-bottom:8px"></div>
+                            <div class="sk" style="height:20px;width:50%"></div>
+                        </div>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+    <!-- 2 revenue/net card skeletons -->
+    <MudGrid Class="mb-6">
+        @for (var i = 0; i < 2; i++)
+        {
+            <MudItem xs="12" sm="6">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                        <div class="sk" style="width:38px;height:38px;border-radius:50%;flex-shrink:0"></div>
+                        <div style="flex:1;min-width:0">
+                            <div class="sk" style="height:11px;width:55%;margin-bottom:8px"></div>
+                            <div class="sk" style="height:20px;width:42%"></div>
+                        </div>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+    <!-- 2 chart panel skeletons -->
+    <MudGrid Class="mb-6">
+        @for (var i = 0; i < 2; i++)
+        {
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <div class="sk" style="height:15px;width:55%;margin-bottom:16px"></div>
+                    <div class="sk" style="height:280px;border-radius:8px"></div>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+    <!-- Expense breakdown table skeleton -->
+    <div class="sk" style="height:15px;width:165px;margin-bottom:12px"></div>
+    <MudPaper Elevation="1" Class="overflow-hidden">
+        <div style="display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--mud-palette-table-lines)">
+            <div class="sk" style="height:13px;width:110px"></div>
+            <div style="flex:1"></div>
+            @for (var c = 0; c < 5; c++) { <div class="sk" style="height:13px;width:58px"></div> }
+            <div class="sk" style="height:13px;width:120px"></div>
+        </div>
+        @for (var r = 0; r < 6; r++)
+        {
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--mud-palette-table-lines)">
+                <div style="display:flex;align-items:center;gap:8px;min-width:110px">
+                    <div class="sk" style="width:12px;height:12px;border-radius:50%;flex-shrink:0"></div>
+                    <div class="sk" style="height:14px;width:80px"></div>
+                </div>
+                <div style="flex:1"></div>
+                @for (var c = 0; c < 4; c++) { <div class="sk" style="height:14px;width:58px"></div> }
+                <div class="sk" style="height:14px;width:25px"></div>
+                <div style="display:flex;align-items:center;gap:6px;min-width:120px">
+                    <div class="sk" style="height:8px;flex:1;border-radius:4px"></div>
+                    <div class="sk" style="height:12px;width:30px"></div>
+                </div>
+            </div>
+        }
+    </MudPaper>
+}
+else if (_categories.Count == 0 && !_hasData)
 {
     <MudAlert Severity="Severity.Info">
         Add budget categories and import transactions to see your dashboard.
@@ -278,7 +354,9 @@ else
 
     private DateOnly _month;
     private DateOnly _currentMonth;
-    private bool     _initialized = false;
+    private bool     _initialized    = false;
+    private bool     _loading        = true;
+    private bool     _pendingCompute = false;
 
     private List<BudgetCategory>  _categories        = [];
     private List<RevenueCategory> _revenueCategories = [];
@@ -301,7 +379,7 @@ else
     private string[]          _trendLabels  = [];
     private ChartOptions      _trendOptions = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         var today     = DateOnly.FromDateTime(DateTime.Now);
         _currentMonth = new DateOnly(today.Year, today.Month, 1);
@@ -314,13 +392,32 @@ else
             _month = DashState.Month.Value;
         else
             _month = _currentMonth;
+    }
 
-        _categories        = await BudgetSvc.GetCategoriesAsync();
-        _revenueCategories = await RevenueSvc.GetCategoriesAsync();
-        _allTx             = await TxSvc.GetAllAsync();
-        SaveState();
-        Compute();
-        _initialized = true;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(1);
+            _categories        = await BudgetSvc.GetCategoriesAsync();
+            _revenueCategories = await RevenueSvc.GetCategoriesAsync();
+            _allTx             = await TxSvc.GetAllAsync();
+            SaveState();
+            Compute();
+            _loading     = false;
+            _initialized = true;
+            StateHasChanged();
+            return;
+        }
+
+        if (_pendingCompute)
+        {
+            _pendingCompute = false;
+            await Task.Delay(1);
+            Compute();
+            _loading = false;
+            StateHasChanged();
+        }
     }
 
     protected override Task OnParametersSetAsync()
@@ -334,7 +431,8 @@ else
         {
             _month = parsed;
             SaveState();
-            Compute();
+            _loading        = true;
+            _pendingCompute = true;
         }
         return base.OnParametersSetAsync();
     }
@@ -347,8 +445,8 @@ else
             new NavigationOptions { ReplaceHistoryEntry = true });
     }
 
-    private void PrevMonth() { _month = _month.AddMonths(-1); SaveState(); UpdateUrl(); Compute(); }
-    private void NextMonth() { _month = _month.AddMonths(1);  SaveState(); UpdateUrl(); Compute(); }
+    private void PrevMonth() { _month = _month.AddMonths(-1); SaveState(); UpdateUrl(); _loading = true; _pendingCompute = true; }
+    private void NextMonth() { _month = _month.AddMonths(1);  SaveState(); UpdateUrl(); _loading = true; _pendingCompute = true; }
 
     private void Compute()
     {

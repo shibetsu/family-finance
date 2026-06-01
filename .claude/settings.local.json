@@ -10,7 +10,12 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Admin\\\\Documents\\\\fintool\" -Recurse -Depth 2)",
       "Bash(Select-Object FullName, PSIsContainer)",
       "Bash(Sort-Object FullName)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Admin\\\\Documents\\\\fintool\" -Recurse -Include \"*.razor\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Admin\\\\Documents\\\\fintool\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(dotnet build *)"
     ]
   }
 }

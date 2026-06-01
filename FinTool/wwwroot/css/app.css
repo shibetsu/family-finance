@@ -9,39 +9,58 @@ html, body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Blazor loading spinner */
-.loading-progress {
-    position: relative;
-    display: block;
-    width: 8rem;
-    height: 8rem;
-    margin: 20vh auto 1rem auto;
+/* Page loading overlay — matches the initial splash screen */
+.page-spin {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    pointer-events: none;
 }
 
-    .loading-progress circle {
-        fill: none;
-        stroke: #e0e0e0;
-        stroke-width: 0.6rem;
-        transform-origin: 50% 50%;
-        transform: rotate(-90deg);
-    }
+.page-spin-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    background: var(--mud-palette-surface, #ffffff);
+    padding: 32px 44px;
+    border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+    pointer-events: auto;
+}
 
-        .loading-progress circle:last-child {
-            stroke: #594AE2;
-            stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
-            transition: stroke-dasharray 0.05s ease-in-out;
-        }
+.page-spin-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
-.loading-progress-text {
-    position: absolute;
-    text-align: center;
+.page-spin-logo {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+}
+
+.page-spin-title {
+    font-size: 20px;
     font-weight: 600;
-    inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
+    color: var(--mud-palette-text-primary, #0a0a0a);
+    letter-spacing: -0.3px;
 }
 
-    .loading-progress-text:after {
-        content: var(--blazor-load-percentage-text, "Loading");
-    }
+.page-spin-wheel {
+    width: 28px;
+    height: 28px;
+    border: 2.5px solid var(--mud-palette-table-lines, #e0e0e0);
+    border-top-color: var(--mud-palette-text-primary, #0a0a0a);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Blazor error overlay */
 #blazor-error-ui {
@@ -63,3 +82,21 @@ html, body {
         right: 0.75rem;
         top: 0.5rem;
     }
+
+/* Skeleton shimmer for loading states */
+.sk {
+    background: linear-gradient(
+        90deg,
+        var(--mud-palette-table-lines) 25%,
+        var(--mud-palette-background) 50%,
+        var(--mud-palette-table-lines) 75%
+    );
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    0%   { background-position: 100% 50%; }
+    100% { background-position: -100% 50%; }
+}
