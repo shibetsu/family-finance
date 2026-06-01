@@ -1,47 +1,25 @@
+using System.Net.Http.Json;
 using FinTool.Models;
 
 namespace FinTool.Services;
 
-public class TransactionService(LocalStorageService storage)
+public class TransactionService(HttpClient http)
 {
-    private const string Key = "fintool_transactions";
-    private List<Transaction>? _cache;
+    public async Task<List<Transaction>> GetAllAsync() =>
+        await http.GetFromJsonAsync<List<Transaction>>("api/transactions") ?? [];
 
-    public async Task<List<Transaction>> GetAllAsync()
-    {
-        _cache ??= await storage.GetAsync<List<Transaction>>(Key) ?? [];
-        return _cache;
-    }
-
-    // Skips duplicates: same date + description + amount already in store.
     public async Task<int> AddRangeAsync(IEnumerable<Transaction> incoming)
     {
-        var all = await GetAllAsync();
-        var added = 0;
-        foreach (var t in incoming)
-        {
-            if (all.Any(x => x.Date == t.Date && x.Description == t.Description && x.Amount == t.Amount))
-                continue;
-            all.Add(t);
-            added++;
-        }
-        if (added > 0)
-            await storage.SetAsync(Key, _cache);
-        return added;
+        var resp   = await http.PostAsJsonAsync("api/transactions/batch", incoming.ToArray());
+        var result = await resp.Content.ReadFromJsonAsync<BatchResult>();
+        return result?.Added ?? 0;
     }
 
-    public async Task UpdateAsync(Transaction updated)
-    {
-        var all = await GetAllAsync();
-        var i = all.FindIndex(t => t.Id == updated.Id);
-        if (i >= 0) all[i] = updated;
-        await storage.SetAsync(Key, _cache);
-    }
+    public async Task UpdateAsync(Transaction updated) =>
+        await http.PutAsJsonAsync($"api/transactions/{updated.Id}", updated);
 
-    public async Task DeleteAsync(Guid id)
-    {
-        var all = await GetAllAsync();
-        all.RemoveAll(t => t.Id == id);
-        await storage.SetAsync(Key, _cache);
-    }
+    public async Task DeleteAsync(Guid id) =>
+        await http.DeleteAsync($"api/transactions/{id}");
+
+    private record BatchResult(int Added);
 }

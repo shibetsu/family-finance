@@ -5,8 +5,8 @@ namespace FinTool.Services;
 
 public class ClaudeService(HttpClient http)
 {
-    private const string ClassifyUrl = "http://localhost:5111/api/classify";
-    private const string PingUrl     = "http://localhost:5111/api/ping";
+    private const string ClassifyUrl = "api/classify";
+    private const string PingUrl     = "api/ping";
 
     public async Task<bool> IsAvailableAsync()
     {

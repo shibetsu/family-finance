@@ -1,22 +1,20 @@
+using System.Net.Http.Json;
+
 namespace FinTool.Services;
 
-public class MerchantCacheService(LocalStorageService storage)
+public class MerchantCacheService(HttpClient http)
 {
-    private const string Key = "fintool_merchant_cache";
-    private Dictionary<string, string>? _cache;   // normalised description → category name
-
     public async Task<string?> GetCategoryAsync(string description)
     {
-        _cache ??= await storage.GetAsync<Dictionary<string, string>>(Key) ?? [];
-        return _cache.GetValueOrDefault(Normalise(description));
+        var resp = await http.PostAsJsonAsync("api/merchant-cache/lookup",
+            new { Description = description });
+        var result = await resp.Content.ReadFromJsonAsync<CategoryResult>();
+        return result?.Category;
     }
 
-    public async Task SetCategoryAsync(string description, string category)
-    {
-        _cache ??= await storage.GetAsync<Dictionary<string, string>>(Key) ?? [];
-        _cache[Normalise(description)] = category;
-        await storage.SetAsync(Key, _cache);
-    }
+    public async Task SetCategoryAsync(string description, string category) =>
+        await http.PostAsJsonAsync("api/merchant-cache/set",
+            new { Description = description, Category = category });
 
-    private static string Normalise(string s) => s.Trim().ToUpperInvariant();
+    private record CategoryResult(string? Category);
 }

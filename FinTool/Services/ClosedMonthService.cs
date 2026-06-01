@@ -1,22 +1,18 @@
+using System.Net.Http.Json;
+
 namespace FinTool.Services;
 
-public class ClosedMonthService(LocalStorageService storage)
+public class ClosedMonthService(HttpClient http)
 {
-    private const string Key = "fintool_closed_months";
-    private HashSet<string>? _cache;
-
     public async Task<HashSet<string>> GetClosedAsync()
     {
-        _cache ??= (await storage.GetAsync<List<string>>(Key) ?? []).ToHashSet();
-        return _cache;
+        var list = await http.GetFromJsonAsync<List<string>>("api/closed-months");
+        return list?.ToHashSet() ?? [];
     }
 
-    public async Task CloseMonthAsync(DateOnly month)
-    {
-        var closed = await GetClosedAsync();
-        if (closed.Add(MonthKey(month)))
-            await storage.SetAsync(Key, closed.ToList());
-    }
+    public async Task CloseMonthAsync(DateOnly month) =>
+        await http.PostAsJsonAsync("api/closed-months",
+            new { MonthKey = MonthKey(month) });
 
     public static string MonthKey(DateOnly month) => $"{month.Year:D4}-{month.Month:D2}";
 }

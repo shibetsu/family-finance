@@ -88,9 +88,11 @@ AccèsD paste
 | Requirement | Notes |
 |---|---|
 | [.NET 8 SDK](https://dotnet.microsoft.com/download) | Required to build and run both projects |
-| [Claude Code CLI](https://claude.ai/code) | Required for AI classification (`claude` must be on your PATH) |
+| [Claude Code CLI](https://claude.ai/code) | Optional — only needed for AI auto-classification (`claude` must be on your PATH) |
 
-> **AI classification is optional.** If `FinTool.Server` is not running, the import flow still works — transactions just won't be auto-classified and you assign categories manually during the review step.
+> **`FinTool.Server` is required** — it serves both the SQLite database API and the optional AI classification endpoint. The Blazor app will not load data without it running.
+>
+> **AI classification is optional.** If the Claude CLI is not installed, the server still starts and all data features work — transactions just won't be auto-classified during import.
 
 ### Running the app
 
@@ -145,18 +147,23 @@ This protects historical data when you later rename categories or adjust budget 
 
 ## Data Storage
 
-Everything is stored in **browser `localStorage`** under these keys:
+All application data is persisted in a **SQLite database** managed by `FinTool.Server`.
 
-| Key | Contents |
+**Database location:** `%LocalAppData%\FamilyFinance\family-finance.db`
+
+| Table | Contents |
 |---|---|
-| `fintool_transactions` | All confirmed transactions |
-| `fintool_budget_categories` | Budget category definitions |
-| `fintool_revenue_categories` | Revenue category definitions |
-| `fintool_merchant_cache` | Learned description → category mappings |
-| `fintool_closed_months` | List of locked month keys (`"yyyy-MM"`) |
-| `fintool_darkmode` | Dark mode preference (`true`/`false`) |
+| `Transactions` | All confirmed transactions |
+| `BudgetCategories` | Expense category definitions |
+| `RevenueCategories` | Income category definitions |
+| `MerchantCache` | Learned description → category mappings |
+| `ClosedMonths` | Locked month keys (`"yyyy-MM"`) |
 
-> Data is browser- and device-specific. To migrate to another browser or device, use the browser's DevTools to export and re-import the `localStorage` values.
+The schema is created automatically on first startup via EF Core's `EnsureCreated()` — no migrations to run.
+
+**Dark mode preference** is the only thing still stored in browser `localStorage` (key `fintool_darkmode`), since it is UI state that belongs to the browser, not the database.
+
+> Because data lives in the SQLite file, it is device-specific but browser-independent. Back up or copy `family-finance.db` to migrate to another machine.
 
 ---
 
