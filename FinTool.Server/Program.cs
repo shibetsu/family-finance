@@ -159,6 +159,9 @@ app.MapDelete("/api/revenue-categories/{id:guid}", async (Guid id, AppDbContext 
 // ---------------------------------------------------------------------------
 // Merchant cache
 // ---------------------------------------------------------------------------
+app.MapGet("/api/merchant-cache", async (AppDbContext db) =>
+    await db.MerchantCache.ToDictionaryAsync(m => m.Description, m => m.Category));
+
 app.MapPost("/api/merchant-cache/lookup", async (LookupRequest req, AppDbContext db) =>
 {
     var key   = req.Description.Trim().ToUpperInvariant();

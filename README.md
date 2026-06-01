@@ -10,18 +10,20 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 
 ### Dashboard
 - **Summary cards** — monthly budget, total spent, remaining budget, transaction count, revenue, and net balance
-- **Spending by Category** — donut chart; hover a slice to see the category name and total in the center of the ring
+- **Spending by Category** — donut chart; click a slice (or the center label) to jump to that category's transactions for the current month
 - **6-Month Trend** — line chart showing expenses and revenue over the last six months
-- **Expense & Revenue breakdowns** — per-category tables with budget progress bars
+- **Expense & Revenue breakdowns** — per-category tables with budget progress bars; category names are clickable and navigate to the Transactions page pre-filtered to that category and month
+- **Persistent month** — the selected month is remembered when navigating between pages and restored on browser back
 
 ### Transactions
-- **Import from AccèsD** — paste the transaction table from the AccèsD portal; the parser auto-detects the format (standard credit card, BONIDOLLARS credit card, or debit account)
-- **AI classification** — a local Claude server classifies each expense into your budget categories automatically; previously seen merchants are cached and applied instantly
+- **Import from AccèsD** — paste the transaction table from the AccèsD portal; the parser auto-detects the format (standard credit card, BONIDOLLARS credit card, or debit account); the Import & Classify button activates as soon as text is pasted
+- **AI classification** — a local Claude server classifies each expense into your budget categories automatically; previously seen merchants are cached and applied instantly (no extra HTTP call per transaction)
+- **Revenue auto-detection** — transactions where money comes in (negative amounts) are automatically treated as revenue; choose the revenue category directly in the import review table
 - **Inline category editing** — change the category on any confirmed transaction from the table; updates the merchant cache so future imports are pre-classified correctly
 - **Mass delete** — select multiple transactions with checkboxes and delete them in one action
-- **Month filter** — navigate month by month with prev/next arrows
-- **Category filter** — multi-select dropdown to show only certain categories
-- **Date sort** — click the Date column header; defaults to newest first
+- **Month filter** — navigate month by month with prev/next arrows; selected month is remembered across navigation and browser back
+- **Category filter** — click the filter icon (funnel) in the Category column header to open a checkbox popover; active filter is indicated by a filled blue icon; filters are preserved when navigating away and back
+- **Sort** — click the Date, Category, or Amount column headers to sort; Date defaults to newest first
 - **Close Month** — lock a past month to prevent any further edits; useful when you later rename categories or adjust budgets without affecting historical records
 
 ### Budget Categories
@@ -55,12 +57,14 @@ family-finance/
 │   │   └── RevenueCategory.cs
 │   ├── Services/
 │   │   ├── LocalStorageService.cs      # JS interop — dark mode pref only
-│   │   ├── TransactionService.cs       # Transaction CRUD (via HTTP)
-│   │   ├── BudgetService.cs            # Budget category CRUD (via HTTP)
-│   │   ├── RevenueCategoryService.cs   # Revenue category CRUD (via HTTP)
-│   │   ├── MerchantCacheService.cs     # Description → category memory (via HTTP)
-│   │   ├── ClosedMonthService.cs       # Month lock tracking (via HTTP)
+│   │   ├── TransactionService.cs       # Transaction CRUD (via HTTP, in-memory cache)
+│   │   ├── BudgetService.cs            # Budget category CRUD (via HTTP, in-memory cache)
+│   │   ├── RevenueCategoryService.cs   # Revenue category CRUD (via HTTP, in-memory cache)
+│   │   ├── MerchantCacheService.cs     # Description → category memory (bulk-loaded, in-memory)
+│   │   ├── ClosedMonthService.cs       # Month lock tracking (via HTTP, in-memory cache)
 │   │   ├── ClaudeService.cs            # AI classification (via HTTP)
+│   │   ├── TransactionFilterState.cs   # Persists transaction page month + category filter across navigation
+│   │   ├── DashboardState.cs           # Persists dashboard month across navigation
 │   │   └── DesjardinsParser.cs         # AccèsD paste parser
 │   └── wwwroot/                        # Static assets, favicon, manifest
 │
@@ -98,10 +102,10 @@ AccèsD paste
 
 ### Running the app
 
-The easiest way is to use the included PowerShell launcher, which opens both processes in separate terminal windows:
+The easiest way is to use the included launcher, which opens both processes in separate terminal windows:
 
-```powershell
-.\start.ps1
+```cmd
+start.cmd
 ```
 
 Then open [http://localhost:5254](http://localhost:5254) in your browser.
@@ -137,7 +141,7 @@ Each category has a name, a monthly budget amount, and a color used in charts.
 2. In Family Finance, click **Import** (top right of the Transactions page).
 3. Paste into the text area. The format is auto-detected (credit card, BONIDOLLARS card, or debit account).
 4. Click **Import & Classify** — the app checks the merchant cache, then sends uncached expenses to the local Claude server for classification.
-5. Review the suggested categories in the table. Adjust any that are wrong, toggle income transactions as Revenue if applicable.
+5. Review the suggested categories in the table. Adjust any that are wrong. Income transactions (money coming in) are automatically flagged as revenue — pick the revenue category from the dropdown.
 6. Click **Confirm All** to save. The modal closes and the transactions appear in the table.
 
 ### 3. Edit categories later
@@ -202,7 +206,8 @@ The schema is created automatically on first startup via EF Core's `EnsureCreate
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/api/merchant-cache/lookup` | Look up cached category for a description |
+| `GET` | `/api/merchant-cache` | Return all cached mappings as a `{ description: category }` dictionary |
+| `POST` | `/api/merchant-cache/lookup` | Look up cached category for a single description |
 | `POST` | `/api/merchant-cache/set` | Store a description → category mapping |
 | `GET` | `/api/closed-months` | List all locked month keys |
 | `POST` | `/api/closed-months` | Lock a month |

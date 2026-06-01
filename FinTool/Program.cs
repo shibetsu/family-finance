@@ -19,5 +19,7 @@ builder.Services.AddScoped<MerchantCacheService>();
 builder.Services.AddScoped<RevenueCategoryService>();
 builder.Services.AddScoped<ClaudeService>();
 builder.Services.AddScoped<ClosedMonthService>();
+builder.Services.AddScoped<TransactionFilterState>();
+builder.Services.AddScoped<DashboardState>();
 
 await builder.Build().RunAsync();

@@ -1,6 +1,8 @@
 @inject TransactionService TxSvc
 @inject BudgetService BudgetSvc
 @inject RevenueCategoryService RevenueSvc
+@inject NavigationManager Nav
+@inject DashboardState DashState
 @using System.Globalization
 
 <!-- ── Header + month navigation ───────────────────────────────────────── -->
@@ -139,7 +141,9 @@ else
                                       ChartOptions="@_donutOptions"
                                       @bind-SelectedIndex="_selectedDonutIndex"
                                       Width="100%" Height="280px" />
-                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;max-width:120px;">
+                            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;max-width:120px;cursor:pointer"
+                                 @onclick="@(() => GoToCategory(_donutLabels[_selectedDonutIndex]))"
+                                 title="View transactions for @_donutLabels[_selectedDonutIndex]">
                                 <div style="font-size:1.1rem;font-weight:600;line-height:1.3">
                                     @Fmt((decimal)_donutData[_selectedDonutIndex])
                                 </div>
@@ -189,7 +193,9 @@ else
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.Circle"
                                  Style="@($"color:{context.Color}")" Size="Size.Small" />
-                        @context.Name
+                        <MudLink OnClick="@(() => GoToCategory(context.Name))"
+                                 Underline="Underline.Hover" Color="Color.Inherit"
+                                 Style="cursor:pointer">@context.Name</MudLink>
                     </MudStack>
                 </MudTd>
                 <MudTd Style="text-align:right">@Fmt(context.Budget)</MudTd>
@@ -244,7 +250,9 @@ else
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.Circle"
                                      Style="@($"color:{context.Color}")" Size="Size.Small" />
-                            @context.Name
+                            <MudLink OnClick="@(() => GoToCategory(context.Name))"
+                                     Underline="Underline.Hover" Color="Color.Inherit"
+                                     Style="cursor:pointer">@context.Name</MudLink>
                         </MudStack>
                     </MudTd>
                     <MudTd DataLabel="Amount" Style="text-align:right">
@@ -264,10 +272,13 @@ else
 }
 
 @code {
+    [Parameter] public string? InitialMonth { get; set; }
+
     private static readonly CultureInfo _cad = CultureInfo.GetCultureInfo("en-CA");
 
     private DateOnly _month;
     private DateOnly _currentMonth;
+    private bool     _initialized = false;
 
     private List<BudgetCategory>  _categories        = [];
     private List<RevenueCategory> _revenueCategories = [];
@@ -294,16 +305,50 @@ else
     {
         var today     = DateOnly.FromDateTime(DateTime.Now);
         _currentMonth = new DateOnly(today.Year, today.Month, 1);
-        _month        = _currentMonth;
+
+        if (InitialMonth is not null &&
+            DateOnly.TryParseExact(InitialMonth, "yyyy-MM",
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+            _month = parsed;
+        else if (DashState.Month.HasValue)
+            _month = DashState.Month.Value;
+        else
+            _month = _currentMonth;
 
         _categories        = await BudgetSvc.GetCategoriesAsync();
         _revenueCategories = await RevenueSvc.GetCategoriesAsync();
         _allTx             = await TxSvc.GetAllAsync();
+        SaveState();
         Compute();
+        _initialized = true;
     }
 
-    private void PrevMonth() { _month = _month.AddMonths(-1); Compute(); }
-    private void NextMonth() { _month = _month.AddMonths(1);  Compute(); }
+    protected override Task OnParametersSetAsync()
+    {
+        if (!_initialized) return base.OnParametersSetAsync();
+
+        if (InitialMonth is not null &&
+            DateOnly.TryParseExact(InitialMonth, "yyyy-MM",
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed) &&
+            parsed != _month)
+        {
+            _month = parsed;
+            SaveState();
+            Compute();
+        }
+        return base.OnParametersSetAsync();
+    }
+
+    private void SaveState() => DashState.Month = _month;
+
+    private void UpdateUrl()
+    {
+        Nav.NavigateTo($"/?month={_month:yyyy-MM}",
+            new NavigationOptions { ReplaceHistoryEntry = true });
+    }
+
+    private void PrevMonth() { _month = _month.AddMonths(-1); SaveState(); UpdateUrl(); Compute(); }
+    private void NextMonth() { _month = _month.AddMonths(1);  SaveState(); UpdateUrl(); Compute(); }
 
     private void Compute()
     {
@@ -366,7 +411,7 @@ else
         if (uncategorisedRevenue > 0)
         {
             var uncatCount = monthTx.Count(t => t.IsRevenue && string.IsNullOrEmpty(t.Category));
-            _revenueRows.Add(new RevRow("Uncategorised", "#9E9E9E", uncategorisedRevenue,
+            _revenueRows.Add(new RevRow("Unclassified", "#9E9E9E", uncategorisedRevenue,
                 uncatCount, uncatCount > 0 ? uncategorisedRevenue / uncatCount : 0));
         }
 
@@ -417,6 +462,13 @@ else
             InterpolationOption = InterpolationOption.NaturalSpline,
             YAxisFormat         = "C0"
         };
+    }
+
+    private void GoToCategory(string categoryName)
+    {
+        var month    = _month.ToString("yyyy-MM");
+        var category = Uri.EscapeDataString(categoryName);
+        Nav.NavigateTo($"/transactions?month={month}&category={category}");
     }
 
     private static string Fmt(decimal v) =>

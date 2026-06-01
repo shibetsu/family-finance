@@ -5,6 +5,8 @@
 @inject ClosedMonthService ClosedMonthSvc
 @inject MerchantCacheService CacheSvc
 @inject IDialogService DialogSvc
+@inject TransactionFilterState FilterState
+@inject NavigationManager Nav
 
 <!-- Header -->
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
@@ -47,18 +49,6 @@
                 Delete (@_selected.Count)
             </MudButton>
         }
-        <MudSelect T="string" MultiSelection="true"
-                   SelectedValues="_categoryFilter"
-                   SelectedValuesChanged="OnCategoryFilterChanged"
-                   Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                   AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
-                   MultiSelectionTextFunc="@CategoryFilterText"
-                   Style="min-width:180px">
-            @foreach (var name in CategoryFilterOptions)
-            {
-                <MudSelectItem T="string" Value="@name">@name</MudSelectItem>
-            }
-        </MudSelect>
         <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" OnClick="PrevMonth" />
         <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
                        Disabled="@(_filterMonth >= _currentMonth)" OnClick="NextMonth" />
@@ -85,8 +75,47 @@
                     </MudTableSortLabel>
                 </MudTh>
                 <MudTh>Description</MudTh>
-                <MudTh>Category</MudTh>
-                <MudTh Style="text-align:right">Amount</MudTh>
+                <MudTh>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
+                        <MudTableSortLabel SortBy="new Func<Transaction, object>(t => t.Category ?? string.Empty)">
+                            Category
+                        </MudTableSortLabel>
+                        <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Dense="true">
+                            <ActivatorContent>
+                                <MudIconButton Icon="@(_categoryFilter.Count > 0 ? Icons.Material.Filled.FilterAlt : Icons.Material.Outlined.FilterAlt)"
+                                               Size="Size.Small"
+                                               Color="@(_categoryFilter.Count > 0 ? Color.Primary : Color.Default)" />
+                            </ActivatorContent>
+                            <ChildContent>
+                                <div style="padding:4px 12px 8px;min-width:170px;max-height:260px;overflow-y:auto">
+                                    @foreach (var name in CategoryFilterOptions)
+                                    {
+                                        var n = name;
+                                        <div>
+                                            <MudCheckBox T="bool"
+                                                         Value="@_categoryFilter.Contains(n)"
+                                                         ValueChanged="@(v => ToggleCategoryFilter(n, v))"
+                                                         Size="Size.Small" Dense="true" Label="@n" />
+                                        </div>
+                                    }
+                                    @if (_categoryFilter.Count > 0)
+                                    {
+                                        <MudDivider Class="my-1" />
+                                        <MudButton Size="Size.Small" FullWidth="true"
+                                                   OnClick="@(() => { _categoryFilter.Clear(); SaveState(); UpdateUrl(); ApplyFilter(); })">
+                                            Clear filter
+                                        </MudButton>
+                                    }
+                                </div>
+                            </ChildContent>
+                        </MudMenu>
+                    </MudStack>
+                </MudTh>
+                <MudTh Style="text-align:right">
+                    <MudTableSortLabel SortBy="new Func<Transaction, object>(t => t.Amount)">
+                        Amount
+                    </MudTableSortLabel>
+                </MudTh>
                 <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
@@ -166,6 +195,9 @@ else
 }
 
 @code {
+    [Parameter] public string? InitialMonth    { get; set; }
+    [Parameter] public string? InitialCategory { get; set; }
+
     private List<Transaction> _confirmed = [];
     private List<Transaction> _filtered  = [];
     private List<BudgetCategory> _categories = [];
@@ -175,6 +207,7 @@ else
     private HashSet<string> _categoryFilter  = [];
     private HashSet<string> _closedMonths    = [];
     private HashSet<Guid>   _selected        = [];
+    private bool            _initialized     = false;
 
     private bool _isMonthClosed =>
         _closedMonths.Contains(ClosedMonthService.MonthKey(_filterMonth));
@@ -189,25 +222,63 @@ else
             .Distinct()
             .OrderBy(x => x);
 
-    private string CategoryFilterText(List<string> selected) => selected.Count switch
-    {
-        0 => "All categories",
-        1 => selected[0],
-        _ => $"{selected.Count} categories"
-    };
 
     protected override async Task OnInitializedAsync()
     {
         var today     = DateOnly.FromDateTime(DateTime.Now);
         _currentMonth = new DateOnly(today.Year, today.Month, 1);
         _filterMonth  = _currentMonth;
+
+        // Priority: URL params (dashboard link / browser back) → state service → default
+        if (InitialMonth is not null &&
+            DateOnly.TryParseExact(InitialMonth, "yyyy-MM",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var parsedMonth))
+            _filterMonth = parsedMonth;
+        else if (FilterState.Month.HasValue)
+            _filterMonth = FilterState.Month.Value;
+
+        if (!string.IsNullOrEmpty(InitialCategory))
+            _categoryFilter = InitialCategory.Split(',')
+                .Select(c => c.Trim()).Where(c => c.Length > 0).ToHashSet();
+        else if (FilterState.CategoryFilter.Count > 0)
+            _categoryFilter = FilterState.CategoryFilter.ToHashSet();
+
         _categories        = await BudgetSvc.GetCategoriesAsync();
         _revenueCategories = await RevenueSvc.GetCategoriesAsync();
         _confirmed = (await TxSvc.GetAllAsync())
             .OrderByDescending(t => t.Date).ThenBy(t => t.Description)
             .ToList();
         _closedMonths = await ClosedMonthSvc.GetClosedAsync();
+        SaveState();
         ApplyFilter();
+        _initialized = true;
+    }
+
+    protected override Task OnParametersSetAsync()
+    {
+        // Only run after first init — handles browser back/forward replaying URL params
+        if (!_initialized) return base.OnParametersSetAsync();
+
+        var newMonth = InitialMonth is not null &&
+            DateOnly.TryParseExact(InitialMonth, "yyyy-MM",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var pm)
+            ? pm : (DateOnly?)null;
+
+        var newCats = string.IsNullOrEmpty(InitialCategory)
+            ? new HashSet<string>()
+            : InitialCategory.Split(',').Select(c => c.Trim())
+                .Where(c => c.Length > 0).ToHashSet();
+
+        bool changed = false;
+        if (newMonth.HasValue && newMonth.Value != _filterMonth)
+            { _filterMonth = newMonth.Value; changed = true; }
+        if (newCats.Count > 0 && !newCats.SetEquals(_categoryFilter))
+            { _categoryFilter = newCats; changed = true; }
+
+        if (changed) { SaveState(); ApplyFilter(); }
+        return base.OnParametersSetAsync();
     }
 
     private void ApplyFilter()
@@ -220,14 +291,29 @@ else
         _selected.IntersectWith(_filtered.Select(t => t.Id));
     }
 
-    private void OnCategoryFilterChanged(IEnumerable<string> values)
+    private void SaveState()
     {
-        _categoryFilter = values.ToHashSet();
-        ApplyFilter();
+        FilterState.Month          = _filterMonth;
+        FilterState.CategoryFilter = _categoryFilter.ToHashSet();
     }
 
-    private void PrevMonth() { _filterMonth = _filterMonth.AddMonths(-1); ApplyFilter(); }
-    private void NextMonth() { _filterMonth = _filterMonth.AddMonths(1);  ApplyFilter(); }
+    private void UpdateUrl()
+    {
+        var cats = string.Join(",", _categoryFilter.OrderBy(x => x));
+        var url  = $"/transactions?month={_filterMonth:yyyy-MM}";
+        if (cats.Length > 0) url += $"&category={Uri.EscapeDataString(cats)}";
+        Nav.NavigateTo(url, new NavigationOptions { ReplaceHistoryEntry = true });
+    }
+
+    private void ToggleCategoryFilter(string name, bool selected)
+    {
+        if (selected) _categoryFilter.Add(name);
+        else _categoryFilter.Remove(name);
+        SaveState(); UpdateUrl(); ApplyFilter();
+    }
+
+    private void PrevMonth() { _filterMonth = _filterMonth.AddMonths(-1); SaveState(); UpdateUrl(); ApplyFilter(); }
+    private void NextMonth() { _filterMonth = _filterMonth.AddMonths(1);  SaveState(); UpdateUrl(); ApplyFilter(); }
 
     private async Task CloseMonthAsync()
     {

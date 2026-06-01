@@ -52,6 +52,7 @@
                           Placeholder="Copy the transaction table from your Desjardins account and paste it here"
                           Lines="6"
                           Variant="Variant.Outlined"
+                          Immediate="true"
                           Class="mb-2" />
 
             @if (_categories.Count == 0 && _revenueCategories.Count == 0)
@@ -88,8 +89,7 @@
                         {
                             <MudSelect T="string" @bind-Value="context.SelectedCategory"
                                        Dense="true" Variant="Variant.Outlined"
-                                       Placeholder="Unclassified" Style="min-width:160px"
->
+                                       Placeholder="Unclassified" Style="min-width:160px">
                                 @foreach (var cat in _categories.OrderBy(c => c.Name))
                                 {
                                     <MudSelectItem T="string" Value="@cat.Name">@cat.Name</MudSelectItem>
@@ -98,31 +98,23 @@
                         }
                         else
                         {
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
-                                <MudSwitch T="bool" @bind-Value="context.IsRevenue"
-                                           Color="Color.Success" Label="Revenue" />
-                                @if (context.IsRevenue)
-                                {
-                                    @if (_revenueCategories.Count > 0)
+                            @if (_revenueCategories.Count > 0)
+                            {
+                                <MudSelect T="string" @bind-Value="context.SelectedRevenueCategory"
+                                           Dense="true" Variant="Variant.Outlined"
+                                           Placeholder="Category" Style="min-width:140px">
+                                    @foreach (var cat in _revenueCategories.OrderBy(c => c.Name))
                                     {
-                                        <MudSelect T="string" @bind-Value="context.SelectedRevenueCategory"
-                                                   Dense="true" Variant="Variant.Outlined"
-                                                   Placeholder="Category" Style="min-width:140px"
-            >
-                                            @foreach (var cat in _revenueCategories.OrderBy(c => c.Name))
-                                            {
-                                                <MudSelectItem T="string" Value="@cat.Name">@cat.Name</MudSelectItem>
-                                            }
-                                        </MudSelect>
+                                        <MudSelectItem T="string" Value="@cat.Name">@cat.Name</MudSelectItem>
                                     }
-                                    else
-                                    {
-                                        <MudText Typo="Typo.caption" Color="Color.Warning">
-                                            Add revenue categories first
-                                        </MudText>
-                                    }
-                                }
-                            </MudStack>
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Warning">
+                                    Add revenue categories first
+                                </MudText>
+                            }
                         }
                     </MudTd>
                 </RowTemplate>
@@ -208,11 +200,8 @@
                 if (tx.Amount < 0)
                 {
                     if (cached != null && revenueNames.Contains(cached))
-                    {
-                        row.IsRevenue = true;
                         row.SelectedRevenueCategory = _revenueCategories
                             .First(c => string.Equals(c.Name, cached, StringComparison.OrdinalIgnoreCase)).Name;
-                    }
                 }
                 else
                 {
@@ -255,7 +244,7 @@
     {
         foreach (var row in _pending)
         {
-            if (row.Tx.Amount < 0 && row.IsRevenue)
+            if (row.Tx.Amount < 0)
             {
                 row.Tx.IsRevenue = true;
                 row.Tx.Category  = row.SelectedRevenueCategory;
@@ -286,7 +275,6 @@
     {
         public Transaction Tx { get; } = tx;
         public string? SelectedCategory { get; set; }
-        public bool IsRevenue { get; set; }
         public string? SelectedRevenueCategory { get; set; }
     }
 }

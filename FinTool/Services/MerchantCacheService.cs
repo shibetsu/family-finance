@@ -4,17 +4,26 @@ namespace FinTool.Services;
 
 public class MerchantCacheService(HttpClient http)
 {
-    public async Task<string?> GetCategoryAsync(string description)
+    private Dictionary<string, string>? _cache;
+
+    private async Task<Dictionary<string, string>> LoadAsync()
     {
-        var resp = await http.PostAsJsonAsync("api/merchant-cache/lookup",
-            new { Description = description });
-        var result = await resp.Content.ReadFromJsonAsync<CategoryResult>();
-        return result?.Category;
+        _cache ??= await http.GetFromJsonAsync<Dictionary<string, string>>("api/merchant-cache") ?? [];
+        return _cache;
     }
 
-    public async Task SetCategoryAsync(string description, string category) =>
+    public async Task<string?> GetCategoryAsync(string description)
+    {
+        var cache = await LoadAsync();
+        return cache.TryGetValue(description.Trim().ToUpperInvariant(), out var cat) ? cat : null;
+    }
+
+    public async Task SetCategoryAsync(string description, string category)
+    {
+        var cache = await LoadAsync();
+        var key   = description.Trim().ToUpperInvariant();
+        cache[key] = category;
         await http.PostAsJsonAsync("api/merchant-cache/set",
             new { Description = description, Category = category });
-
-    private record CategoryResult(string? Category);
+    }
 }

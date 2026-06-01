@@ -1,3 +1,8 @@
 @page "/"
 <PageTitle>Dashboard – FinTool</PageTitle>
-<DashboardTab />
+<DashboardTab InitialMonth="@Month" />
+
+@code {
+    [SupplyParameterFromQuery(Name = "month")]
+    public string? Month { get; set; }
+}

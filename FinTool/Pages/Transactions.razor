@@ -1,3 +1,11 @@
 @page "/transactions"
 <PageTitle>Transactions – FinTool</PageTitle>
-<TransactionsTab />
+<TransactionsTab InitialMonth="@Month" InitialCategory="@Category" />
+
+@code {
+    [SupplyParameterFromQuery(Name = "month")]
+    public string? Month { get; set; }
+
+    [SupplyParameterFromQuery(Name = "category")]
+    public string? Category { get; set; }
+}
