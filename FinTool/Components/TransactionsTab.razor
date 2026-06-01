@@ -9,6 +9,12 @@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">Transactions</MudText>
     <MudSpacer />
+    <MudButton Variant="Variant.Outlined"
+               StartIcon="@Icons.Material.Filled.Lock"
+               Disabled="@(_filterMonth >= _currentMonth || _isMonthClosed)"
+               OnClick="CloseMonthAsync">
+        Close Month
+    </MudButton>
     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.CloudUpload"
                OnClick="OpenImportAsync">
@@ -32,14 +38,6 @@
             }
         </MudStack>
         <MudSpacer />
-        @if (!_isMonthClosed && _filterMonth < _currentMonth)
-        {
-            <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Lock"
-                       OnClick="CloseMonthAsync">
-                Close Month
-            </MudButton>
-        }
         <MudSelect T="string" MultiSelection="true"
                    SelectedValues="_categoryFilter"
                    SelectedValuesChanged="OnCategoryFilterChanged"
