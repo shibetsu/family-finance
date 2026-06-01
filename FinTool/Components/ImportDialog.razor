@@ -1,0 +1,292 @@
+@using System.Globalization
+@inject TransactionService TxSvc
+@inject BudgetService BudgetSvc
+@inject RevenueCategoryService RevenueSvc
+@inject MerchantCacheService CacheSvc
+@inject ClaudeService ClaudeSvc
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.h6">Import Transactions</MudText>
+            <MudSpacer />
+            @if (_serverAvailable == true)
+            {
+                <MudChip T="string" Color="Color.Success" Size="Size.Small"
+                         Icon="@Icons.Material.Filled.CheckCircle">
+                    Claude ready
+                </MudChip>
+            }
+            else if (_serverAvailable == false)
+            {
+                <MudTooltip Text="Run: dotnet run --project FinTool.Server">
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small"
+                             Icon="@Icons.Material.Filled.Warning">
+                        Server offline
+                    </MudChip>
+                </MudTooltip>
+            }
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (_pending.Count == 0)
+        {
+            <MudStack Row="true" Spacing="2" Class="mb-3">
+                <MudButton Variant="@(_accountType == "credit" ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Primary" Size="Size.Small"
+                           OnClick='() => _accountType = "credit"'>
+                    Credit Card
+                </MudButton>
+                <MudButton Variant="@(_accountType == "debit" ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Primary" Size="Size.Small"
+                           OnClick='() => _accountType = "debit"'>
+                    Debit Account
+                </MudButton>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Style="align-self:center">
+                    (auto-detected from paste)
+                </MudText>
+            </MudStack>
+
+            <MudTextField @bind-Value="_pasteText"
+                          Label="Paste from AccèsD"
+                          Placeholder="Copy the transaction table from your Desjardins account and paste it here"
+                          Lines="6"
+                          Variant="Variant.Outlined"
+                          Class="mb-2" />
+
+            @if (_categories.Count == 0 && _revenueCategories.Count == 0)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-2" Dense="true">
+                    No budget or revenue categories defined yet. Add some before importing to enable auto-classification.
+                </MudAlert>
+            }
+            @if (_importError != null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-2" Dense="true">@_importError</MudAlert>
+            }
+        }
+        else
+        {
+            <MudText Typo="Typo.subtitle2" Class="mb-3">Review @_pending.Count transaction(s)</MudText>
+            <MudTable T="PendingRow" Items="_pending" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Date</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh Style="text-align:right">Amount</MudTh>
+                    <MudTh>Category</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Date">@context.Tx.Date.ToString("MMM d")</MudTd>
+                    <MudTd DataLabel="Description">@context.Tx.Description</MudTd>
+                    <MudTd DataLabel="Amount" Style="text-align:right">
+                        <MudText Color="@AmountColor(context.Tx.Amount)">
+                            @FormatAmount(context.Tx.Amount)
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Category">
+                        @if (context.Tx.Amount >= 0)
+                        {
+                            <MudSelect T="string" @bind-Value="context.SelectedCategory"
+                                       Dense="true" Variant="Variant.Outlined"
+                                       Placeholder="Unclassified" Style="min-width:160px"
+>
+                                @foreach (var cat in _categories.OrderBy(c => c.Name))
+                                {
+                                    <MudSelectItem T="string" Value="@cat.Name">@cat.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                                <MudSwitch T="bool" @bind-Value="context.IsRevenue"
+                                           Color="Color.Success" Label="Revenue" />
+                                @if (context.IsRevenue)
+                                {
+                                    @if (_revenueCategories.Count > 0)
+                                    {
+                                        <MudSelect T="string" @bind-Value="context.SelectedRevenueCategory"
+                                                   Dense="true" Variant="Variant.Outlined"
+                                                   Placeholder="Category" Style="min-width:140px"
+            >
+                                            @foreach (var cat in _revenueCategories.OrderBy(c => c.Name))
+                                            {
+                                                <MudSelectItem T="string" Value="@cat.Name">@cat.Name</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Warning">
+                                            Add revenue categories first
+                                        </MudText>
+                                    }
+                                }
+                            </MudStack>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_pending.Count == 0)
+        {
+            <MudButton OnClick="@(() => MudDialog.Cancel())">Cancel</MudButton>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (_importing)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                }
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           Disabled="@(_importing || string.IsNullOrWhiteSpace(_pasteText))"
+                           OnClick="ImportAsync">
+                    @(_importing ? "Classifying…" : "Import & Classify")
+                </MudButton>
+            </MudStack>
+        }
+        else
+        {
+            <MudButton OnClick="@(() => _pending.Clear())">Discard</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.CheckCircle"
+                       OnClick="ConfirmAllAsync">
+                Confirm All
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+
+    private string _pasteText = "";
+    private string _accountType = "credit";
+    private bool _importing;
+    private string? _importError;
+    private bool? _serverAvailable;
+
+    private List<PendingRow> _pending = [];
+    private List<BudgetCategory> _categories = [];
+    private List<RevenueCategory> _revenueCategories = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories        = await BudgetSvc.GetCategoriesAsync();
+        _revenueCategories = await RevenueSvc.GetCategoriesAsync();
+        _serverAvailable   = await ClaudeSvc.IsAvailableAsync();
+    }
+
+    private async Task ImportAsync()
+    {
+        _importError = null;
+        _importing   = true;
+        StateHasChanged();
+
+        try
+        {
+            var (parsed, detectedType) = DesjardinsParser.Parse(_pasteText);
+            _accountType = detectedType;
+
+            if (parsed.Count == 0)
+            {
+                _importError = "No transactions found. Make sure you copied the full table from AccèsD.";
+                return;
+            }
+
+            var pending              = new List<PendingRow>();
+            var needsClassification  = new List<Transaction>();
+            var budgetNames          = _categories.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var revenueNames         = _revenueCategories.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var tx in parsed)
+            {
+                var cached = await CacheSvc.GetCategoryAsync(tx.Description);
+                var row    = new PendingRow(tx);
+
+                if (tx.Amount < 0)
+                {
+                    if (cached != null && revenueNames.Contains(cached))
+                    {
+                        row.IsRevenue = true;
+                        row.SelectedRevenueCategory = _revenueCategories
+                            .First(c => string.Equals(c.Name, cached, StringComparison.OrdinalIgnoreCase)).Name;
+                    }
+                }
+                else
+                {
+                    if (cached != null && budgetNames.Contains(cached))
+                        row.SelectedCategory = _categories
+                            .First(c => string.Equals(c.Name, cached, StringComparison.OrdinalIgnoreCase)).Name;
+                    else
+                        needsClassification.Add(tx);
+                }
+
+                pending.Add(row);
+            }
+
+            _pending = pending;
+
+            if (needsClassification.Count > 0 && _serverAvailable == true && _categories.Count > 0)
+            {
+                var suggestions = await ClaudeSvc.ClassifyAsync(needsClassification, _categories);
+                foreach (var row in _pending.Where(r => r.Tx.Amount >= 0 && r.SelectedCategory == null))
+                {
+                    if (suggestions.TryGetValue(row.Tx.Id, out var cat) && budgetNames.Contains(cat))
+                        row.SelectedCategory = _categories
+                            .First(c => string.Equals(c.Name, cat, StringComparison.OrdinalIgnoreCase)).Name;
+                }
+            }
+
+            _pasteText = "";
+        }
+        catch (Exception ex)
+        {
+            _importError = $"Import failed: {ex.Message}";
+        }
+        finally
+        {
+            _importing = false;
+        }
+    }
+
+    private async Task ConfirmAllAsync()
+    {
+        foreach (var row in _pending)
+        {
+            if (row.Tx.Amount < 0 && row.IsRevenue)
+            {
+                row.Tx.IsRevenue = true;
+                row.Tx.Category  = row.SelectedRevenueCategory;
+                if (!string.IsNullOrEmpty(row.SelectedRevenueCategory))
+                    await CacheSvc.SetCategoryAsync(row.Tx.Description, row.SelectedRevenueCategory);
+            }
+            else
+            {
+                row.Tx.IsRevenue = false;
+                row.Tx.Category  = row.SelectedCategory;
+                if (!string.IsNullOrEmpty(row.SelectedCategory))
+                    await CacheSvc.SetCategoryAsync(row.Tx.Description, row.SelectedCategory);
+            }
+            row.Tx.IsConfirmed = true;
+        }
+
+        await TxSvc.AddRangeAsync(_pending.Select(r => r.Tx));
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private static Color AmountColor(decimal amount) =>
+        amount >= 0 ? Color.Error : Color.Success;
+
+    private static string FormatAmount(decimal amount) =>
+        amount >= 0 ? $"${amount:N2}" : $"+${Math.Abs(amount):N2}";
+
+    private class PendingRow(Transaction tx)
+    {
+        public Transaction Tx { get; } = tx;
+        public string? SelectedCategory { get; set; }
+        public bool IsRevenue { get; set; }
+        public string? SelectedRevenueCategory { get; set; }
+    }
+}
