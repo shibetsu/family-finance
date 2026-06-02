@@ -18,33 +18,46 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 - **Spending by Category** — donut chart; click a slice (or the center label) to jump to that category's transactions for the current month
 - **6-Month Trend** — line chart showing expenses and revenue over the last six months
 - **Expense & Revenue breakdowns** — per-category tables with budget progress bars, transaction counts, and per-transaction averages; category names are clickable and navigate to the Transactions page pre-filtered to that category and month
-- **Ignored transactions** — a collapsible panel at the bottom lists all transactions belonging to ignored categories for the selected month, showing total ignored expenses and revenue; helps audit what is excluded from your totals
+- **Ignored transactions** — a collapsible panel lists transactions belonging to ignored categories for the selected month
 
 ### Transactions
-- **Import from AccèsD** — paste the transaction table from the AccèsD portal; the parser auto-detects the format (standard credit card, BONIDOLLARS credit card, or debit account); the Import & Classify button activates as soon as text is pasted
-- **AI classification** — a local Claude server classifies each expense into your budget categories automatically; previously seen merchants are cached and applied instantly (no extra HTTP call per transaction)
-- **Revenue auto-detection** — transactions where money comes in (negative amounts) are automatically treated as revenue; choose the revenue category directly in the import review table
-- **Inline category editing** — change the category on any confirmed transaction from the table; updates the merchant cache so future imports are pre-classified correctly
-- **Mass delete** — select multiple transactions with checkboxes (with indeterminate header state) and delete them in one action
-- **Category filter** — click the filter icon (funnel) in the Category column header to open a checkbox popover; active filter is indicated by a filled blue icon; filters are preserved when navigating away and back
-- **Sort** — click the Date, Category, or Amount column headers to sort; Date defaults to newest first
-- **Close Month** — lock a past month to prevent any further edits; useful when you later rename categories or adjust budgets without affecting historical records
+- **Import from AccèsD** — paste the transaction table from the AccèsD portal; the parser auto-detects the format (standard credit card, BONIDOLLARS credit card, or debit account)
+- **AI classification** — a local Claude server classifies each expense into your budget categories automatically; previously seen merchants are cached and applied instantly
+- **Revenue auto-detection** — transactions where money comes in are automatically treated as revenue; choose the revenue category in the import review table
+- **Inline editing** — assign category, account, and savings goal directly from dropdown selectors in each row; category assignments update the merchant cache for future imports
+- **Goal tagging** — link any transaction to a savings goal; the goal's progress is computed from all tagged transactions automatically
+- **Mass delete** — select multiple transactions with checkboxes and delete them in one action
+- **Category & account filters** — funnel icons in column headers open checkbox popovers; active filters persist when navigating away and back
+- **Sort** — click Date, Category, or Amount column headers to sort
+- **Close Month** — lock a past month to prevent any further edits; locked months show a 🔒 icon and all dropdowns become read-only
 
-### Budget Categories
-- Create and manage expense categories (name, monthly budget amount, color)
-- Mark a category as ignored to exclude it from dashboard totals and charts
+### Recurring
+- Detects transactions that appear in two or more months (same description) and surfaces them as recurring items
+- Shows average amount, last amount, last month seen, number of occurrences, and status (active / paused / cancelled)
+- Useful for spotting subscriptions and regular bills without manual tagging
 
-### Revenue Categories
-- Create and manage income categories (name, color)
-- Mark a category as ignored to exclude it from dashboard totals
-
-### Budget Planner *(new)*
-- **Multiple drafts** — create as many budget scenarios as you want; drafts are named, renameable, and deletable from a tab bar
-- **Import from history** — the "Import history" menu detects up to 3 contiguous past months with transaction data and offers to create a draft pre-populated with averaged actual spending per category (preserving real category colors and ordering by amount)
-- **Inline editing** — edit category names, amounts (numeric field), and colors (native color picker overlaid on the color dot) directly in the table without a modal
-- **Historical reference column** — each row shows the actual 3-month average alongside the draft amount; the reference is color-coded (green = under, warning = over) with a tooltip showing the exact difference
+### Planner
+- **Multiple drafts** — create and name as many budget scenarios as you want; drafts persist in the database and are never merged with live categories
+- **Import from history** — detects up to 3 contiguous past months with data and offers to seed a draft from averaged actual spending (preserves real category colors)
+- **Inline editing** — edit category names, amounts, and colors directly in the table; historical average is shown alongside the draft amount with color-coded difference tooltips
+- **Apply to Settings** — promote a draft to your live budget in one click; replaces all current budget and revenue categories with the draft's rows after confirmation
 - **Live summary** — Monthly Budget, Monthly Revenue, and Net cards update as you type
-- **Isolated data** — drafts are stored in the SQLite database (`BudgetDrafts` table) but never affect your real budget categories, revenue categories, or transactions
+
+### Goals
+- Define savings targets with a name, target amount, optional starting balance, and color
+- **Progress bar** — color-coded to each goal's chosen color; shows current saved amount vs. target and percentage complete
+- **Transaction-based progress** — tag any transaction to a goal from the Transactions page; the goal's saved amount is computed as starting balance + sum of all tagged transaction amounts
+- **Projection** — shows estimated months to reach the goal based on average net monthly savings from the last 1–3 months of confirmed transactions
+- "Achieved!" chip appears once the goal is reached
+
+### Accounts
+- Define bank accounts and credit cards with a name, type (credit card / debit / savings), and accent color
+- Accounts appear as colored chips in the Transactions table and can be assigned to transactions inline via dropdown
+
+### Settings
+- Manage **budget categories** (name, monthly amount, color, optional ignore flag) and **revenue categories** (name, color, optional ignore flag) side by side in a two-column layout
+- Categories marked as ignored are excluded from dashboard totals and charts
+- Color changes take effect immediately across charts, breakdowns, and the Planner
 
 ---
 
@@ -52,41 +65,43 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 
 ```
 family-finance/
-├── FinTool/                    # Blazor WebAssembly app
+├── FinTool/                          # Blazor WebAssembly app (port 5254)
 │   ├── Components/
+│   │   ├── ColorPicker.razor         # Swatch row + native picker fallback (used in dialogs)
+│   │   ├── InlineColorPicker.razor   # Compact circle that opens floating swatch panel (used in tables)
+│   │   ├── CategoryDialog.razor / RevenueCategoryDialog.razor / GoalDialog.razor
+│   │   ├── BudgetTab.razor / RevenueTab.razor
+│   │   ├── TransactionsTab.razor / ImportDialog.razor
 │   │   ├── DashboardTab.razor
-│   │   ├── TransactionsTab.razor
-│   │   ├── ImportDialog.razor
-│   │   ├── BudgetTab.razor
-│   │   ├── RevenueTab.razor
-│   │   ├── CategoryDialog.razor
-│   │   └── RevenueCategoryDialog.razor
+│   │   └── ChatBot.razor
 │   ├── Layout/
-│   │   └── MainLayout.razor    # App shell, global month picker, drawer, theme
+│   │   └── MainLayout.razor          # App shell, global month picker, drawer, theme
 │   ├── Models/
-│   │   ├── Transaction.cs
-│   │   ├── BudgetCategory.cs
-│   │   ├── RevenueCategory.cs
-│   │   └── BudgetDraft.cs      # Draft + DraftRow models for Budget Planner
+│   │   ├── Transaction.cs            # Amount: positive=expense, negative=income; GoalId nullable
+│   │   ├── BudgetCategory.cs / RevenueCategory.cs
+│   │   ├── BudgetDraft.cs            # Draft + DraftRow for Planner
+│   │   ├── Goal.cs
+│   │   └── Account.cs
 │   ├── Pages/
-│   │   └── BudgetPlanner.razor # Budget scenario builder
+│   │   ├── Dashboard.razor / Transactions.razor / Recurring.razor
+│   │   ├── BudgetPlanner.razor       # /planner
+│   │   ├── Goals.razor               # /goals
+│   │   ├── Accounts.razor            # /accounts
+│   │   └── Settings.razor            # /settings — embeds BudgetTab + RevenueTab side by side
 │   ├── Services/
-│   │   ├── LocalStorageService.cs      # JS interop — dark mode pref only
-│   │   ├── TransactionService.cs       # Transaction CRUD (via HTTP, in-memory cache)
-│   │   ├── BudgetService.cs            # Budget category CRUD (via HTTP, in-memory cache)
-│   │   ├── RevenueCategoryService.cs   # Revenue category CRUD (via HTTP, in-memory cache)
-│   │   ├── MerchantCacheService.cs     # Description → category memory (bulk-loaded, in-memory)
-│   │   ├── ClosedMonthService.cs       # Month lock tracking (via HTTP, in-memory cache)
-│   │   ├── ClaudeService.cs            # AI classification (via HTTP)
-│   │   ├── MonthState.cs               # Global selected month — shared across all pages
-│   │   ├── TransactionFilterState.cs   # Persists transaction page category filter across navigation
-│   │   ├── BudgetPlannerService.cs     # Draft CRUD (via HTTP)
-│   │   └── DesjardinsParser.cs         # AccèsD paste parser
-│   ├── NavIcons.cs             # SVG letter-in-box nav icons matching the app logo
-│   └── wwwroot/                # Static assets, PWA icons, manifest
+│   │   ├── MonthState.cs             # Global selected month — shared across all pages via OnChange event
+│   │   ├── TransactionFilterState.cs # Persists category filter across navigation
+│   │   ├── TransactionService.cs / BudgetService.cs / RevenueCategoryService.cs
+│   │   ├── GoalService.cs / AccountService.cs / RecurringService.cs
+│   │   ├── BudgetPlannerService.cs / ClosedMonthService.cs / MerchantCacheService.cs
+│   │   ├── ClaudeService.cs / ChatService.cs
+│   │   ├── DesjardinsParser.cs       # AccèsD paste format auto-detection and parsing
+│   │   └── LocalStorageService.cs    # JS interop — dark mode preference only
+│   ├── ColorPalette.cs               # 10-color soft palette + Random() helper
+│   └── NavIcons.cs                   # SVG letter-in-box icons for navigation
 │
-└── FinTool.Server/             # ASP.NET Core API — SQLite database + AI bridge
-    └── Program.cs              # EF Core DbContext, REST endpoints, Claude runner
+└── FinTool.Server/                   # ASP.NET Core minimal API (port 5111)
+    └── Program.cs                    # EF Core DbContext, all endpoints, RunClaudeAsync helper
 ```
 
 ### Data flow
@@ -148,9 +163,7 @@ dotnet watch --project FinTool --launch-profile http
 
 ### 1. Set up categories
 
-Before importing, go to **Budget** and create your expense categories (e.g. Groceries, Restaurants, Transport). Optionally, go to **Revenue** and create income categories (e.g. Salary, Freelance).
-
-Each category has a name, a monthly budget amount, and a color used in charts.
+Go to **Settings** and create your expense categories (name, monthly budget, color) and income categories. Mark anything you don't want affecting your totals (transfers, savings moves) as ignored.
 
 ### 2. Import transactions
 
@@ -158,22 +171,24 @@ Each category has a name, a monthly budget amount, and a color used in charts.
 2. In Family Finance, click **Import** (top right of the Transactions page).
 3. Paste into the text area. The format is auto-detected (credit card, BONIDOLLARS card, or debit account).
 4. Click **Import & Classify** — the app checks the merchant cache, then sends uncached expenses to the local Claude server for classification.
-5. Review the suggested categories in the table. Adjust any that are wrong. Income transactions (money coming in) are automatically flagged as revenue — pick the revenue category from the dropdown.
-6. Click **Confirm All** to save. The modal closes and the transactions appear in the table.
+5. Review the suggested categories. Adjust any that are wrong. Income transactions are automatically flagged as revenue.
+6. Click **Confirm All** to save.
 
-### 3. Edit categories later
+### 3. Tag accounts and goals
 
-Open the **Transactions** tab, navigate to the relevant month using the **month picker in the top bar**, and use the dropdown in each row's Category column to reassign it. Changes are saved immediately.
+After importing, use the **Account** and **Goal** dropdowns directly in each transaction row to assign which account the transaction belongs to and whether it contributes to a savings goal.
 
 ### 4. Close a month
 
-Once a month is fully reviewed, click **Close Month** in the header. This locks all transactions in the currently viewed month — category dropdowns become read-only and the delete button is hidden. Locked months display a 🔒 icon next to the month name.
-
-This protects historical data when you later rename categories or adjust budget amounts.
+Once a month is fully reviewed, click **Close Month** in the Transactions header. This locks all transactions for that month — dropdowns become read-only and the delete button is hidden. Useful to protect historical data when you later rename categories.
 
 ### 5. Plan future budgets
 
-Open the **Budget Planner** from the navigation drawer. Click **Import history** to create a draft seeded from your actual recent spending, or **New Draft** to start from scratch. You can maintain multiple named drafts and experiment freely — nothing here touches your real data.
+Open **Planner** from the navigation. Click **Import history** to seed a draft from your actual recent spending, or **New Draft** to start from scratch. Once you're happy with a draft, click **Apply to Settings** to make it your live budget.
+
+### 6. Track savings goals
+
+Open **Goals**, add a goal with a target amount and optional starting balance. Then tag transactions to that goal from the Transactions page — progress updates automatically.
 
 ---
 
@@ -185,18 +200,20 @@ All application data is persisted in a **SQLite database** managed by `FinTool.S
 
 | Table | Contents |
 |---|---|
-| `Transactions` | All confirmed transactions |
-| `BudgetCategories` | Expense category definitions |
+| `Transactions` | All confirmed transactions; `GoalId` (nullable) links to a savings goal |
+| `BudgetCategories` | Expense category definitions with monthly budget amounts |
 | `RevenueCategories` | Income category definitions |
-| `MerchantCache` | Learned description → category mappings |
+| `Goals` | Savings targets; `CurrentAmount` is a manual starting balance; actual progress adds tagged transaction amounts |
+| `Accounts` | Bank accounts and credit cards with accent colors |
+| `BudgetDrafts` | Planner drafts; `ExpensesJson` and `RevenueJson` stored as JSON text columns |
+| `MerchantCache` | Learned description → category mappings (PK is normalised uppercase description) |
 | `ClosedMonths` | Locked month keys (`"yyyy-MM"`) |
-| `BudgetDrafts` | Budget Planner drafts (expenses + revenue stored as JSON columns) |
 
-The schema is created automatically on first startup via EF Core's `EnsureCreated()` plus explicit `CREATE TABLE IF NOT EXISTS` statements for tables added after the initial schema — no migrations to run.
+The schema is created automatically on first startup — no migrations to run. Columns added to existing tables use `ALTER TABLE … ADD COLUMN` wrapped in `try/catch` so they're applied once and ignored on subsequent starts.
 
-**Dark mode preference** is the only thing stored in browser `localStorage` (key `fintool_darkmode`), since it is UI state that belongs to the browser, not the database.
+**Dark mode preference** is the only thing stored in browser `localStorage` (key `fintool_darkmode`).
 
-> Because data lives in the SQLite file, it is device-specific but browser-independent. Back up or copy `family-finance.db` to migrate to another machine.
+> Back up or copy `family-finance.db` to migrate to another machine.
 
 ---
 
@@ -210,7 +227,7 @@ The schema is created automatically on first startup via EF Core's `EnsureCreate
 |---|---|---|
 | `GET` | `/api/transactions` | All transactions, ordered by date desc |
 | `POST` | `/api/transactions/batch` | Import array; skips duplicates (same date + description + amount) |
-| `PUT` | `/api/transactions/{id}` | Update category / flags on one transaction |
+| `PUT` | `/api/transactions/{id}` | Update category, account, goal, and flags on one transaction |
 | `DELETE` | `/api/transactions/{id}` | Delete a transaction |
 | `POST` | `/api/transactions/batch-delete` | Delete multiple transactions by id array |
 
@@ -225,47 +242,40 @@ The schema is created automatically on first startup via EF Core's `EnsureCreate
 | `POST` | `/api/revenue-categories` | Create or update (upsert by Id) |
 | `DELETE` | `/api/revenue-categories/{id}` | Delete a revenue category |
 
-### Budget Planner
+### Goals & Accounts
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/budget-drafts` | All saved drafts (expenses and revenue deserialized) |
+| `GET` | `/api/goals` | All savings goals |
+| `POST` | `/api/goals` | Create or update (upsert by Id) |
+| `DELETE` | `/api/goals/{id}` | Delete a goal |
+| `GET` | `/api/accounts` | All accounts, ordered by name |
+| `POST` | `/api/accounts` | Create or update (upsert by Id) |
+| `DELETE` | `/api/accounts/{id}` | Delete an account |
+
+### Planner & Utility
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/budget-drafts` | All saved drafts |
 | `PUT` | `/api/budget-drafts` | Replace all drafts atomically |
-
-### Merchant Cache & Closed Months
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/merchant-cache` | Return all cached mappings as a `{ description: category }` dictionary |
-| `POST` | `/api/merchant-cache/lookup` | Look up cached category for a single description |
+| `GET` | `/api/recurring` | Detected recurring transactions across all confirmed data |
+| `GET` | `/api/merchant-cache` | All cached description → category mappings |
+| `POST` | `/api/merchant-cache/lookup` | Look up cached category for one description |
 | `POST` | `/api/merchant-cache/set` | Store a description → category mapping |
-| `GET` | `/api/closed-months` | List all locked month keys |
+| `GET` | `/api/closed-months` | All locked month keys |
 | `POST` | `/api/closed-months` | Lock a month |
+| `GET` | `/api/ping` | Health check |
 
-### AI Classification
+### AI Classification & Chat
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/ping` | Health check — returns `{"status":"ok"}` |
-| `POST` | `/api/classify` | Classify a batch of transaction descriptions |
+| `POST` | `/api/classify` | Classify a batch of transaction descriptions into budget categories |
+| `POST` | `/api/chat` | Ask the AI assistant about a specific month's transactions |
+| `POST` | `/api/chat/budget` | Guided budget planning conversation |
 
-**Classify request:**
-```json
-{
-  "transactions": ["METRO PLUS ST-EUSTACHE", "DOLLARAMA 1234"],
-  "categories": ["Groceries", "Restaurants", "Transport", "Entertainment"]
-}
-```
-
-**Classify response:**
-```json
-[
-  {"index": 1, "category": "Groceries"},
-  {"index": 2, "category": "Entertainment"}
-]
-```
-
-Internally, the server builds a prompt and pipes it to `claude -p` via `Process.Start`. The response is parsed for a JSON array; any surrounding text Claude adds is stripped. The call times out after 120 seconds.
+The server builds a prompt and pipes it to `claude -p` via `Process.Start`. Responses are parsed for structured output; the call times out after 120 seconds.
 
 ---
 

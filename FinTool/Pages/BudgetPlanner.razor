@@ -3,10 +3,13 @@
 @inject BudgetService BudgetSvc
 @inject RevenueCategoryService RevenueSvc
 @inject BudgetPlannerService PlannerSvc
+@inject IDialogService DialogSvc
+@inject ISnackbar Snackbar
 @using System.Globalization
 @using FinTool.Models
+@using FinTool.Services
 
-<PageTitle>Budget Planner – FinTool</PageTitle>
+<PageTitle>Planner – FinTool</PageTitle>
 
 @if (_loading)
 {
@@ -16,7 +19,7 @@ else
 {
     <!-- ── Header ───────────────────────────────────────────────────────── -->
     <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Class="mb-5" Spacing="2">
-        <MudText Typo="Typo.h5">Budget Planner</MudText>
+        <MudText Typo="Typo.h5">Planner</MudText>
         <MudSpacer />
         @if (_importOptions.Count > 0)
         {
@@ -38,6 +41,14 @@ else
                     </MudMenuItem>
                 }
             </MudMenu>
+        }
+        @if (_drafts.Count > 0)
+        {
+            <MudButton StartIcon="@Icons.Material.Filled.PublishedWithChanges"
+                       Variant="Variant.Outlined" Size="Size.Small"
+                       OnClick="ApplyToSettingsAsync">
+                Apply to Settings
+            </MudButton>
         }
         <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
                    Color="Color.Primary" Size="Size.Small" OnClick="AddDraft">
@@ -145,8 +156,22 @@ else
                 @DrawTable(ActiveDraft, isRevenue: true)
             </MudItem>
         </MudGrid>
+
+        <!-- ── Notes ────────────────────────────────────────────────────── -->
+        <MudPaper Elevation="1" Class="pa-4 mt-4">
+            <MudText Typo="Typo.subtitle1" Class="mb-3">Notes</MudText>
+            <MudTextField T="string"
+                          Value="@ActiveDraft.Notes"
+                          ValueChanged="@(async v => { ActiveDraft.Notes = v ?? ""; await SaveAsync(); })"
+                          Placeholder="Add notes, assumptions, or reminders for this draft…"
+                          Lines="5"
+                          Variant="Variant.Outlined"
+                          FullWidth="true" />
+        </MudPaper>
     }
 }
+
+<ChatBot Context="ChatBotContext.BudgetPlanner" OnDraftReady="OnAiDraftCreated" />
 
 @code {
     private bool _loading = true;
@@ -187,7 +212,6 @@ else
         var rows     = isRevenue ? draft.Revenue : draft.Expenses;
         var hist     = isRevenue ? _histRevenue : _histExpense;
         var title    = isRevenue ? "Revenue" : "Expenses";
-        var addColor = isRevenue ? "#4CAF50" : "#594AE2";
         var hasHist  = hist.Count > 0;
         var gridCols = hasHist ? "28px 1fr 110px 80px 32px" : "28px 1fr 110px 32px";
 
@@ -216,12 +240,8 @@ else
 
                     <div style="display:grid;grid-template-columns:@gridCols;gap:6px;align-items:center;padding:3px 0">
                         <!-- Color picker -->
-                        <div style="position:relative;width:22px;height:22px;flex-shrink:0">
-                            <div style="width:22px;height:22px;border-radius:50%;background:@r.Color;border:1px solid rgba(0,0,0,.1)"></div>
-                            <input type="color" value="@r.Color"
-                                   @onchange="@(async e => { r.Color = e.Value?.ToString() ?? r.Color; await SaveAsync(); })"
-                                   style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
-                        </div>
+                        <InlineColorPicker Value="@r.Color"
+                                           ValueChanged="@(async v => { r.Color = v; await SaveAsync(); })" />
 
                         <!-- Name -->
                         <input value="@r.Name"
@@ -274,7 +294,7 @@ else
             <!-- Add row -->
             <MudButton StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" Variant="Variant.Text"
                        Color="Color.Default" Class="mt-2"
-                       OnClick="@(async () => { rows.Add(new DraftRow { Color = addColor }); await SaveAsync(); })">
+                       OnClick="@(async () => { rows.Add(new DraftRow { Color = ColorPalette.Random() }); await SaveAsync(); })">
                 Add category
             </MudButton>
         </MudPaper>
@@ -410,4 +430,35 @@ else
     }
 
     private Task SaveAsync() => PlannerSvc.SaveDraftsAsync(_drafts);
+
+    private async Task ApplyToSettingsAsync()
+    {
+        var confirmed = await DialogSvc.ShowMessageBox(
+            "Apply to Settings",
+            $"This will replace all budget and revenue categories with the {ActiveDraft.Expenses.Count} expense and {ActiveDraft.Revenue.Count} revenue entries from \"{ActiveDraft.Name}\". Existing categories will be overwritten.",
+            yesText: "Apply", cancelText: "Cancel");
+        if (confirmed != true) return;
+
+        foreach (var cat in _budgetCats)
+            await BudgetSvc.DeleteAsync(cat.Id);
+        foreach (var row in ActiveDraft.Expenses)
+            await BudgetSvc.SaveAsync(new BudgetCategory { Name = row.Name, MonthlyAmount = row.Amount, Color = row.Color });
+
+        foreach (var cat in _revCats)
+            await RevenueSvc.DeleteAsync(cat.Id);
+        foreach (var row in ActiveDraft.Revenue)
+            await RevenueSvc.SaveAsync(new RevenueCategory { Name = row.Name, Color = row.Color });
+
+        _budgetCats = await BudgetSvc.GetCategoriesAsync();
+        _revCats    = await RevenueSvc.GetCategoriesAsync();
+
+        Snackbar.Add($"\"{ActiveDraft.Name}\" applied to Settings.", Severity.Success);
+    }
+
+    private async Task OnAiDraftCreated(BudgetDraft draft)
+    {
+        _drafts.Add(draft);
+        _activeIdx = _drafts.Count - 1;
+        await SaveAsync();
+    }
 }

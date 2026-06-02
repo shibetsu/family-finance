@@ -1,9 +1,12 @@
 @using System.Globalization
+@using FinTool.Models
+@using FinTool.Services
 @inject TransactionService TxSvc
 @inject BudgetService BudgetSvc
 @inject RevenueCategoryService RevenueSvc
 @inject MerchantCacheService CacheSvc
 @inject ClaudeService ClaudeSvc
+@inject AccountService AccountSvc
 
 <MudDialog>
     <TitleContent>
@@ -31,6 +34,25 @@
     <DialogContent>
         @if (_pending.Count == 0)
         {
+            @if (_accounts.Count > 0)
+            {
+                <MudSelect T="Guid?" Value="_accountId" ValueChanged="@(v => _accountId = v)"
+                           Label="Account" Variant="Variant.Outlined" Margin="Margin.Dense"
+                           Class="mb-3" Clearable>
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">— No account —</MudSelectItem>
+                    @foreach (var acct in _accounts)
+                    {
+                        var a = acct;
+                        <MudSelectItem T="Guid?" Value="@((Guid?)a.Id)">
+                            <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+                                <div style="width:10px;height:10px;border-radius:50%;background:@a.Color;flex-shrink:0"></div>
+                                @a.Name
+                            </MudStack>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            }
+
             <MudStack Row="true" Spacing="2" Class="mb-3">
                 <MudButton Variant="@(_accountType == "credit" ? Variant.Filled : Variant.Outlined)"
                            Color="Color.Primary" Size="Size.Small"
@@ -153,21 +175,24 @@
 @code {
     [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
 
-    private string _pasteText = "";
-    private string _accountType = "credit";
-    private bool _importing;
+    private string  _pasteText   = "";
+    private string  _accountType = "credit";
+    private Guid?   _accountId;
+    private bool    _importing;
     private string? _importError;
-    private bool? _serverAvailable;
+    private bool?   _serverAvailable;
 
-    private List<PendingRow> _pending = [];
-    private List<BudgetCategory> _categories = [];
+    private List<PendingRow>      _pending           = [];
+    private List<BudgetCategory>  _categories        = [];
     private List<RevenueCategory> _revenueCategories = [];
+    private List<Account>         _accounts          = [];
 
     protected override async Task OnInitializedAsync()
     {
         _categories        = await BudgetSvc.GetCategoriesAsync();
         _revenueCategories = await RevenueSvc.GetCategoriesAsync();
         _serverAvailable   = await ClaudeSvc.IsAvailableAsync();
+        _accounts          = await AccountSvc.GetAllAsync();
     }
 
     private async Task ImportAsync()
@@ -259,6 +284,7 @@
                     await CacheSvc.SetCategoryAsync(row.Tx.Description, row.SelectedCategory);
             }
             row.Tx.IsConfirmed = true;
+            row.Tx.AccountId   = _accountId;
         }
 
         await TxSvc.AddRangeAsync(_pending.Select(r => r.Tx));

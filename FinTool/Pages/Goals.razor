@@ -1,0 +1,223 @@
+@page "/goals"
+@inject GoalService GoalSvc
+@inject TransactionService TxSvc
+@inject IDialogService DialogSvc
+@inject ISnackbar Snackbar
+@using FinTool.Models
+@using FinTool.Services
+@using System.Globalization
+
+<PageTitle>Goals – FinTool</PageTitle>
+
+@if (_loading)
+{
+    <LoadingOverlay />
+}
+else
+{
+    <MudStack Row AlignItems="AlignItems.Center" Class="mb-6">
+        <MudText Typo="Typo.h5">Goals</MudText>
+        <MudSpacer />
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                   Color="Color.Primary" Size="Size.Small" OnClick="AddGoal">
+            Add Goal
+        </MudButton>
+    </MudStack>
+
+    @if (_goals.Count == 0)
+    {
+        <MudPaper Elevation="0" Class="pa-10"
+                  Style="text-align:center;border:2px dashed var(--mud-palette-divider);border-radius:12px">
+            <MudIcon Icon="@Icons.Material.Filled.Savings"
+                     Style="font-size:3rem;opacity:0.3" Class="mb-3" />
+            <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Class="mb-1">No goals yet</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                Set a savings target — vacation, emergency fund, down payment — and track your progress here.
+            </MudText>
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled"
+                       Color="Color.Primary" OnClick="AddGoal">
+                Add your first goal
+            </MudButton>
+        </MudPaper>
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var goal in _goals)
+            {
+                var g      = goal;
+                var saved  = GetSaved(g);
+                var pct    = g.TargetAmount > 0 ? Math.Min(100d, (double)saved / (double)g.TargetAmount * 100d) : 0d;
+                var rem    = Math.Max(0m, g.TargetAmount - saved);
+                var done   = saved >= g.TargetAmount;
+                int? mos = (!done && _monthlySavings > 0 && rem > 0)
+                           ? (int?)Math.Ceiling((double)rem / (double)_monthlySavings)
+                           : null;
+
+                <MudItem xs="12" sm="6" md="4">
+                    <MudPaper Elevation="1" Style="border-radius:12px;overflow:hidden;height:100%;display:flex;flex-direction:column">
+                        <div style="height:5px;background:@g.Color"></div>
+                        <div style="padding:20px 20px 12px;flex:1;display:flex;flex-direction:column;gap:12px">
+
+                            <MudStack Row AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.subtitle1" Style="font-weight:600;flex:1">@g.Name</MudText>
+                                @if (done)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small"
+                                             Variant="Variant.Filled" Style="height:22px">
+                                        Achieved!
+                                    </MudChip>
+                                }
+                            </MudStack>
+
+                            <div>
+                                <div style="height:8px;border-radius:4px;background:var(--mud-palette-divider);overflow:hidden">
+                                    <div style="height:100%;border-radius:4px;width:@($"{pct:F0}%");background:@g.Color;transition:width .4s ease"></div>
+                                </div>
+                            </div>
+
+                            <MudStack Row AlignItems="AlignItems.Baseline">
+                                <MudText Typo="Typo.body2" Style="font-weight:600">@Fmt(saved)</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">saved of @Fmt(g.TargetAmount)</MudText>
+                                <MudSpacer />
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@($"{pct:F0}")%</MudText>
+                            </MudStack>
+
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @if (done)
+                                {
+                                    if (!string.IsNullOrWhiteSpace(g.Notes)) { @g.Notes }
+                                }
+                                else if (mos.HasValue)
+                                {
+                                    @($"~{mos} month{(mos == 1 ? "" : "s")} to reach · {Fmt(rem)} remaining")
+                                }
+                                else if (_monthlySavings <= 0)
+                                {
+                                    <span>Add more months of data to see a projection</span>
+                                }
+                                else
+                                {
+                                    @($"{Fmt(rem)} remaining")
+                                }
+                            </MudText>
+
+                        </div>
+                        <MudDivider />
+                        <MudStack Row Style="padding:4px 8px">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Size="Size.Small" OnClick="@(() => EditGoal(g))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => DeleteGoal(g))" />
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+
+        @if (_monthlySavings > 0)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-4 d-block">
+                Projections based on ~@Fmt(_monthlySavings)/month average net savings
+                (last @_histMonthCount month@(_histMonthCount == 1 ? "" : "s"))
+            </MudText>
+        }
+    }
+}
+
+@code {
+    private bool             _loading        = true;
+    private List<Goal>       _goals          = [];
+    private List<Transaction> _allTx         = [];
+    private decimal          _monthlySavings;
+    private int              _histMonthCount;
+
+    private static readonly CultureInfo _ca = CultureInfo.GetCultureInfo("en-CA");
+    private static string Fmt(decimal v) => v.ToString("C0", _ca);
+
+    private decimal GetSaved(Goal g) =>
+        g.CurrentAmount + (_allTx ?? []).Where(t => t.GoalId == g.Id).Sum(t => Math.Abs(t.Amount));
+
+    private static readonly DialogOptions _dialogOpts =
+        new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Task.Delay(1);
+        _goals  = await GoalSvc.GetAllAsync();
+        _allTx  = await TxSvc.GetAllAsync();
+        ComputeMonthlySavings(_allTx);
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void ComputeMonthlySavings(List<Transaction> allTx)
+    {
+        var today  = DateOnly.FromDateTime(DateTime.Now);
+        var months = new List<DateOnly>();
+        for (var i = 1; i <= 3; i++)
+        {
+            var m = today.AddMonths(-i);
+            if (allTx.Any(t => t.Date.Year == m.Year && t.Date.Month == m.Month))
+                months.Add(m);
+            else break;
+        }
+        if (months.Count == 0) return;
+        _histMonthCount = months.Count;
+
+        var rev = allTx.Where(t =>  t.IsRevenue && t.IsConfirmed &&
+                                    months.Any(m => t.Date.Year == m.Year && t.Date.Month == m.Month))
+                       .Sum(t => -t.Amount);
+        var exp = allTx.Where(t => !t.IsRevenue && t.Amount > 0 && t.IsConfirmed &&
+                                    months.Any(m => t.Date.Year == m.Year && t.Date.Month == m.Month))
+                       .Sum(t => t.Amount);
+        _monthlySavings = Math.Max(0m, (rev - exp) / months.Count);
+    }
+
+    private async Task AddGoal()
+    {
+        var goal = new Goal { Color = ColorPalette.Random() };
+        var p    = new DialogParameters<GoalDialog> { { x => x.Goal, goal } };
+        var dlg  = await DialogSvc.ShowAsync<GoalDialog>("Add Goal", p, _dialogOpts);
+        if ((await dlg.Result) is { Canceled: false })
+        {
+            await GoalSvc.SaveAsync(goal);
+            _goals = await GoalSvc.GetAllAsync();
+        }
+    }
+
+    private async Task EditGoal(Goal original)
+    {
+        var copy = new Goal
+        {
+            Id            = original.Id,
+            Name          = original.Name,
+            Color         = original.Color,
+            TargetAmount  = original.TargetAmount,
+            CurrentAmount = original.CurrentAmount,
+            Notes         = original.Notes
+        };
+        var p   = new DialogParameters<GoalDialog> { { x => x.Goal, copy } };
+        var dlg = await DialogSvc.ShowAsync<GoalDialog>("Edit Goal", p, _dialogOpts);
+        if ((await dlg.Result) is { Canceled: false })
+        {
+            await GoalSvc.SaveAsync(copy);
+            _goals = await GoalSvc.GetAllAsync();
+        }
+    }
+
+    private async Task DeleteGoal(Goal goal)
+    {
+        var confirmed = await DialogSvc.ShowMessageBox(
+            "Delete Goal",
+            $"Delete \"{goal.Name}\"? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirmed == true)
+        {
+            await GoalSvc.DeleteAsync(goal.Id);
+            _goals = await GoalSvc.GetAllAsync();
+        }
+    }
+}

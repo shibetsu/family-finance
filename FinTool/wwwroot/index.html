@@ -71,6 +71,12 @@
     </div>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.scrollChatToBottom = function (id) {
+            var el = document.getElementById(id);
+            if (el) el.scrollTop = el.scrollHeight;
+        };
+    </script>
     <script>navigator.serviceWorker.register('service-worker.js');</script>
 </body>
 

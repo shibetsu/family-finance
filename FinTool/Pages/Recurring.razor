@@ -1,0 +1,258 @@
+@page "/recurring"
+@inject RecurringService RecurringSvc
+@inject BudgetService BudgetSvc
+@inject RevenueCategoryService RevenueSvc
+@using System.Globalization
+@using FinTool.Services
+
+<PageTitle>Recurring – FinTool</PageTitle>
+
+@if (_loading)
+{
+    <LoadingOverlay />
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-6">Recurring</MudText>
+
+    <!-- Summary cards -->
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.Repeat" Color="Color.Primary" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Monthly Recurring Expenses</MudText>
+                        <MudText Typo="Typo.h6">@Fmt(_activeExpenseTotal)</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Active</MudText>
+                        <MudText Typo="Typo.h6">@_activeCount</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="1" Class="pa-4">
+                <MudStack Row AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.PauseCircle" Color="Color.Warning" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Paused / Cancelled</MudText>
+                        <MudText Typo="Typo.h6">@(_pausedCount + _cancelledCount)</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Filters -->
+    <MudStack Row AlignItems="AlignItems.Center" Spacing="2" Class="mb-3" Wrap="Wrap.Wrap">
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight:500">TYPE</MudText>
+        @foreach (var t in new[] { "All", "Expenses", "Revenue" })
+        {
+            var lbl = t;
+            <MudChip T="string"
+                     Color="@(_typeFilter == lbl ? Color.Primary : Color.Default)"
+                     Variant="@(_typeFilter == lbl ? Variant.Filled : Variant.Outlined)"
+                     Size="Size.Small"
+                     OnClick="@(() => { _typeFilter = lbl; ApplyFilter(); })">
+                @lbl
+            </MudChip>
+        }
+        <MudSpacer />
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight:500">STATUS</MudText>
+        @foreach (var s in new[] { "All", "Active", "Paused", "Cancelled" })
+        {
+            var lbl = s;
+            <MudChip T="string"
+                     Color="@(_statusFilter == lbl ? Color.Primary : Color.Default)"
+                     Variant="@(_statusFilter == lbl ? Variant.Filled : Variant.Outlined)"
+                     Size="Size.Small"
+                     OnClick="@(() => { _statusFilter = lbl; ApplyFilter(); })">
+                @lbl
+            </MudChip>
+        }
+    </MudStack>
+
+    <!-- Table -->
+    @if (_filtered.Count > 0)
+    {
+        <MudPaper Elevation="1">
+            <MudTable T="RecurringService.RecurringItem" Items="_filtered"
+                      Dense Hover Elevation="0"
+                      SortLabel="Sort By">
+                <HeaderContent>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="new Func<RecurringService.RecurringItem, object>(r => r.Description)">
+                            Description
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>Category</MudTh>
+                    <MudTh Style="text-align:right">
+                        <MudTableSortLabel InitialDirection="SortDirection.Descending"
+                                           SortBy="new Func<RecurringService.RecurringItem, object>(r => r.AvgAmount)">
+                            Avg / month
+                        </MudTableSortLabel>
+                    </MudTh>
+                    <MudTh Style="text-align:right">Last amount</MudTh>
+                    <MudTh>Last seen</MudTh>
+                    <MudTh Style="text-align:center">Months</MudTh>
+                    <MudTh Style="text-align:center">Status</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Description">
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.body2">@context.Description</MudText>
+                            @if (context.IsRevenue)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Success">Revenue</MudText>
+                            }
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Category">
+                        @if (context.Category is not null)
+                        {
+                            var color = CategoryColor(context.Category, context.IsRevenue);
+                            <MudChip T="string" Size="Size.Small" Style="@($"background:{color};color:white;height:22px")"
+                                     Variant="Variant.Filled">
+                                @context.Category
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">—</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Avg / month" Style="text-align:right">
+                        <MudText Typo="Typo.body2" Color="@(context.IsRevenue ? Color.Success : Color.Error)">
+                            @(context.IsRevenue ? "+" : "")@Fmt(context.AvgAmount)
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Last amount" Style="text-align:right">
+                        @if (context.LastAmount != context.AvgAmount)
+                        {
+                            <MudText Typo="Typo.body2" Color="@(context.IsRevenue ? Color.Success : Color.Default)">
+                                @(context.IsRevenue ? "+" : "")@Fmt(context.LastAmount)
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">same</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Last seen">@FormatMonth(context.LastMonth)</MudTd>
+                    <MudTd DataLabel="Months" Style="text-align:center">
+                        <MudText Typo="Typo.body2">@context.Occurrences×</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Status" Style="text-align:center">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                 Color="@StatusColor(context.Status)" Style="height:22px">
+                            @context.Status
+                        </MudChip>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+    else if (_items.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">
+            No recurring transactions detected yet. Import a few months of data to start seeing patterns.
+        </MudAlert>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">No items match the current filters.</MudAlert>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private List<RecurringService.RecurringItem> _items    = [];
+    private List<RecurringService.RecurringItem> _filtered = [];
+
+    private Dictionary<string, string> _catColors    = [];
+    private Dictionary<string, string> _revCatColors = [];
+
+    private string _typeFilter   = "All";
+    private string _statusFilter = "All";
+
+    private decimal _activeExpenseTotal;
+    private int     _activeCount;
+    private int     _pausedCount;
+    private int     _cancelledCount;
+
+    private static readonly CultureInfo _ca = CultureInfo.GetCultureInfo("en-CA");
+    private static string Fmt(decimal v) => v.ToString("C0", _ca);
+
+    private static string FormatMonth(string yyyyMm)
+    {
+        if (DateOnly.TryParseExact(yyyyMm + "-01", "yyyy-MM-dd",
+            CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+            return d.ToString("MMMM yyyy", CultureInfo.InvariantCulture);
+        return yyyyMm;
+    }
+
+    private static Color StatusColor(string status) => status switch
+    {
+        "active"    => Color.Success,
+        "paused"    => Color.Warning,
+        "cancelled" => Color.Default,
+        _           => Color.Default
+    };
+
+    private string CategoryColor(string name, bool isRevenue)
+    {
+        var map = isRevenue ? _revCatColors : _catColors;
+        return map.GetValueOrDefault(name, "#9E9E9E");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Task.Delay(1);
+
+        var cats    = await BudgetSvc.GetCategoriesAsync();
+        var revCats = await RevenueSvc.GetCategoriesAsync();
+
+        _catColors    = cats.ToDictionary(c => c.Name, c => c.Color);
+        _revCatColors = revCats.ToDictionary(c => c.Name, c => c.Color);
+
+        _items = await RecurringSvc.GetAllAsync();
+
+        _activeExpenseTotal = _items
+            .Where(i => i.Status == "active" && !i.IsRevenue)
+            .Sum(i => i.AvgAmount);
+        _activeCount    = _items.Count(i => i.Status == "active");
+        _pausedCount    = _items.Count(i => i.Status == "paused");
+        _cancelledCount = _items.Count(i => i.Status == "cancelled");
+
+        ApplyFilter();
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void ApplyFilter()
+    {
+        var q = _items.AsEnumerable();
+
+        q = _typeFilter switch
+        {
+            "Expenses" => q.Where(i => !i.IsRevenue),
+            "Revenue"  => q.Where(i =>  i.IsRevenue),
+            _          => q
+        };
+
+        if (_statusFilter != "All")
+            q = q.Where(i => string.Equals(i.Status, _statusFilter, StringComparison.OrdinalIgnoreCase));
+
+        _filtered = q.ToList();
+    }
+}

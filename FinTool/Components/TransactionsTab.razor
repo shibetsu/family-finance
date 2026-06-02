@@ -1,9 +1,16 @@
+<style>
+    .cat-select .mud-input { font-size: 0.875rem; }
+</style>
 @using System.Globalization
+@using FinTool.Models
+@using FinTool.Services
 @inject TransactionService TxSvc
 @inject BudgetService BudgetSvc
 @inject RevenueCategoryService RevenueSvc
 @inject ClosedMonthService ClosedMonthSvc
 @inject MerchantCacheService CacheSvc
+@inject AccountService AccountSvc
+@inject GoalService GoalSvc
 @inject IDialogService DialogSvc
 @inject TransactionFilterState FilterState
 @inject NavigationManager Nav
@@ -86,6 +93,17 @@ else if (_confirmed.Count > 0)
         }
     </MudStack>
 
+    <MudTextField T="string"
+                  Value="@_searchTerm"
+                  ValueChanged="@OnSearchChanged"
+                  Placeholder="Search transactions… (press Enter)"
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  Variant="Variant.Outlined"
+                  Margin="Margin.Dense"
+                  Clearable="true"
+                  Class="mb-2" />
+
     @if (_filtered.Count > 0)
     {
         <MudTable T="Transaction" Items="_filtered" Dense="true" Hover="true" Elevation="1">
@@ -106,6 +124,43 @@ else if (_confirmed.Count > 0)
                     </MudTableSortLabel>
                 </MudTh>
                 <MudTh>Description</MudTh>
+                <MudTh>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
+                        Account
+                        @if (_accounts.Count > 0)
+                        {
+                            <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Dense>
+                                <ActivatorContent>
+                                    <MudIconButton Icon="@(_accountFilter.Count > 0 ? Icons.Material.Filled.FilterAlt : Icons.Material.Outlined.FilterAlt)"
+                                                   Size="Size.Small"
+                                                   Color="@(_accountFilter.Count > 0 ? Color.Primary : Color.Default)" />
+                                </ActivatorContent>
+                                <ChildContent>
+                                    <div style="padding:4px 12px 8px;min-width:170px">
+                                        @foreach (var acct in _accounts)
+                                        {
+                                            var a = acct;
+                                            <div>
+                                                <MudCheckBox T="bool"
+                                                             Value="@_accountFilter.Contains(a.Id)"
+                                                             ValueChanged="@(v => ToggleAccountFilter(a.Id, v))"
+                                                             Size="Size.Small" Dense Label="@a.Name" />
+                                            </div>
+                                        }
+                                        @if (_accountFilter.Count > 0)
+                                        {
+                                            <MudDivider Class="my-1" />
+                                            <MudButton Size="Size.Small" FullWidth
+                                                       OnClick="@(() => { _accountFilter.Clear(); ApplyFilter(); })">
+                                                Clear filter
+                                            </MudButton>
+                                        }
+                                    </div>
+                                </ChildContent>
+                            </MudMenu>
+                        }
+                    </MudStack>
+                </MudTh>
                 <MudTh>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
                         <MudTableSortLabel SortBy="new Func<Transaction, object>(t => t.Category ?? string.Empty)">
@@ -142,6 +197,10 @@ else if (_confirmed.Count > 0)
                         </MudMenu>
                     </MudStack>
                 </MudTh>
+                @if (_goals.Count > 0)
+                {
+                    <MudTh>Goal</MudTh>
+                }
                 <MudTh Style="text-align:right">
                     <MudTableSortLabel SortBy="new Func<Transaction, object>(t => t.Amount)">
                         Amount
@@ -161,6 +220,19 @@ else if (_confirmed.Count > 0)
                 </MudTd>
                 <MudTd DataLabel="Date">@context.Date.ToString("MMM d, yyyy")</MudTd>
                 <MudTd DataLabel="Description">@context.Description</MudTd>
+                <MudTd DataLabel="Account">
+                    <MudSelect T="string" Value="@(context.AccountId?.ToString() ?? "")"
+                               ValueChanged="@(async v => await UpdateAccountAsync(context, string.IsNullOrEmpty(v) ? null : Guid.Parse(v)))"
+                               Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                               Placeholder="—" Class="cat-select" Style="min-width:120px"
+                               Disabled="@(_isMonthClosed || _accounts.Count == 0)">
+                        <MudSelectItem T="string" Value="@("")">—</MudSelectItem>
+                        @foreach (var a in _accounts)
+                        {
+                            <MudSelectItem T="string" Value="@a.Id.ToString()">@a.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
                 <MudTd DataLabel="Category">
                     @if (_isMonthClosed)
                     {
@@ -171,7 +243,7 @@ else if (_confirmed.Count > 0)
                         <MudSelect T="string" Value="@context.Category"
                                    ValueChanged="@(async v => await UpdateCategoryAsync(context, v))"
                                    Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                   Placeholder="—" Style="min-width:140px">
+                                   Placeholder="—" Class="cat-select" Style="min-width:120px">
                             <MudSelectItem T="string" Value="@((string?)null)">—</MudSelectItem>
                             @foreach (var cat in _revenueCategories.OrderBy(c => c.Name))
                             {
@@ -184,7 +256,7 @@ else if (_confirmed.Count > 0)
                         <MudSelect T="string" Value="@context.Category"
                                    ValueChanged="@(async v => await UpdateCategoryAsync(context, v))"
                                    Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                   Placeholder="Unclassified" Style="min-width:140px">
+                                   Placeholder="Unclassified" Class="cat-select" Style="min-width:120px">
                             <MudSelectItem T="string" Value="@((string?)null)">Unclassified</MudSelectItem>
                             @foreach (var cat in _categories.OrderBy(c => c.Name))
                             {
@@ -197,6 +269,22 @@ else if (_confirmed.Count > 0)
                         <MudText Typo="Typo.caption" Color="Color.Default">—</MudText>
                     }
                 </MudTd>
+                @if (_goals.Count > 0)
+                {
+                    <MudTd DataLabel="Goal">
+                        <MudSelect T="string" Value="@(context.GoalId?.ToString() ?? "")"
+                                   ValueChanged="@(async v => await UpdateGoalAsync(context, string.IsNullOrEmpty(v) ? null : Guid.Parse(v)))"
+                                   Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                   Placeholder="—" Class="cat-select" Style="min-width:110px"
+                                   Disabled="@_isMonthClosed">
+                            <MudSelectItem T="string" Value="@("")">—</MudSelectItem>
+                            @foreach (var goal in _goals)
+                            {
+                                <MudSelectItem T="string" Value="@goal.Id.ToString()">@goal.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudTd>
+                }
                 <MudTd DataLabel="Amount" Style="text-align:right">
                     <MudText Color="@AmountColor(context.Amount)">@FormatAmount(context.Amount)</MudText>
                 </MudTd>
@@ -214,7 +302,7 @@ else if (_confirmed.Count > 0)
     else
     {
         <MudAlert Severity="Severity.Info">
-            No transactions in @MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)@(_categoryFilter.Any() ? " matching the selected categories" : "").
+            No transactions in @MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)@(_categoryFilter.Any() || !string.IsNullOrWhiteSpace(_searchTerm) ? " matching the current filters" : "").
         </MudAlert>
     }
 }
@@ -231,11 +319,17 @@ else
 
     private List<Transaction> _confirmed = [];
     private List<Transaction> _filtered  = [];
-    private List<BudgetCategory> _categories = [];
+    private List<BudgetCategory>  _categories        = [];
     private List<RevenueCategory> _revenueCategories = [];
+    private List<Account>         _accounts          = [];
+    private Dictionary<Guid, Account> _accountMap    = [];
+    private List<Goal>            _goals             = [];
+    private Dictionary<Guid, Goal> _goalMap          = [];
     private HashSet<string> _categoryFilter  = [];
+    private HashSet<Guid>   _accountFilter   = [];
     private HashSet<string> _closedMonths    = [];
     private HashSet<Guid>   _selected        = [];
+    private string          _searchTerm     = "";
     private bool            _initialized    = false;
     private bool            _loading        = true;
     private bool            _pendingFilter  = false;
@@ -276,6 +370,10 @@ else
             await Task.Delay(1);
             _categories        = await BudgetSvc.GetCategoriesAsync();
             _revenueCategories = await RevenueSvc.GetCategoriesAsync();
+            _accounts          = await AccountSvc.GetAllAsync();
+            _accountMap        = _accounts.ToDictionary(a => a.Id);
+            _goals             = await GoalSvc.GetAllAsync();
+            _goalMap           = _goals.ToDictionary(g => g.Id);
             _confirmed = (await TxSvc.GetAllAsync())
                 .OrderByDescending(t => t.Date).ThenBy(t => t.Description)
                 .ToList();
@@ -340,8 +438,26 @@ else
             .Where(t => t.Date.Year == MonthSvc.Month.Year && t.Date.Month == MonthSvc.Month.Month);
         if (_categoryFilter.Count > 0)
             q = q.Where(t => _categoryFilter.Contains(t.Category ?? "Unclassified"));
+        if (_accountFilter.Count > 0)
+            q = q.Where(t => t.AccountId.HasValue && _accountFilter.Contains(t.AccountId.Value));
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            var term = _searchTerm.Trim().ToLowerInvariant();
+            q = q.Where(t =>
+                t.Date.ToString("MMM d, yyyy", CultureInfo.InvariantCulture).ToLowerInvariant().Contains(term) ||
+                t.Description.ToLowerInvariant().Contains(term) ||
+                (t.Category?.ToLowerInvariant().Contains(term) ?? false) ||
+                FormatAmount(t.Amount).ToLowerInvariant().Contains(term) ||
+                t.AccountType.ToLowerInvariant().Contains(term));
+        }
         _filtered = q.ToList();
         _selected.IntersectWith(_filtered.Select(t => t.Id));
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        _searchTerm = value ?? "";
+        ApplyFilter();
     }
 
     private void SaveState() => FilterState.CategoryFilter = _categoryFilter.ToHashSet();
@@ -359,6 +475,13 @@ else
         if (selected) _categoryFilter.Add(name);
         else _categoryFilter.Remove(name);
         SaveState(); UpdateUrl(); ApplyFilter();
+    }
+
+    private void ToggleAccountFilter(Guid id, bool selected)
+    {
+        if (selected) _accountFilter.Add(id);
+        else _accountFilter.Remove(id);
+        ApplyFilter();
     }
 
     private async Task CloseMonthAsync()
@@ -428,6 +551,20 @@ else
         await TxSvc.DeleteAsync(tx.Id);
         _confirmed.RemoveAll(t => t.Id == tx.Id);
         ApplyFilter();
+    }
+
+    private async Task UpdateAccountAsync(Transaction tx, Guid? accountId)
+    {
+        if (_isMonthClosed) return;
+        tx.AccountId = accountId;
+        await TxSvc.UpdateAsync(tx);
+    }
+
+    private async Task UpdateGoalAsync(Transaction tx, Guid? goalId)
+    {
+        if (_isMonthClosed) return;
+        tx.GoalId = goalId;
+        await TxSvc.UpdateAsync(tx);
     }
 
     private async Task UpdateCategoryAsync(Transaction tx, string? newCategory)

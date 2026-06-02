@@ -10,7 +10,9 @@ public static class NavIcons
 
     public static readonly string Dashboard    = Box('D');
     public static readonly string Transactions = Box('T');
-    public static readonly string Budget       = Box('B');
-    public static readonly string Revenue      = Box('R');
+    public static readonly string Recurring    = Box('R');
     public static readonly string Planner      = Box('P');
+    public static readonly string Goals        = Box('G');
+    public static readonly string Accounts     = Box('A');
+    public static readonly string Settings     = Box('S');
 }

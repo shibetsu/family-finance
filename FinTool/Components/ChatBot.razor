@@ -1,0 +1,350 @@
+@inject ChatService ChatSvc
+@inject MonthState MonthSvc
+@inject IJSRuntime JS
+@implements IDisposable
+@using System.Globalization
+@using System.Text.Json
+@using System.Text.RegularExpressions
+@using System.Net
+@using FinTool.Models
+@using FinTool.Services
+
+<style>
+    .chatbot-panel {
+        animation: chatbot-slide-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @@keyframes chatbot-slide-in {
+        from { opacity: 0; transform: translateY(12px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0)   scale(1);    }
+    }
+    .chat-msg-user      { background: var(--mud-palette-primary); color: white; }
+    .chat-msg-assistant { background: var(--mud-palette-background-grey); }
+    .chat-msg-success   { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .chat-bubble {
+        max-width: 84%;
+        padding: 9px 13px;
+        word-break: break-word;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+    .chat-bubble p  { margin: 0 0 4px 0; }
+    .chat-bubble ul { margin: 2px 0 4px 0; padding-left: 18px; }
+    .chat-bubble li { margin: 1px 0; }
+    .chat-bubble :last-child { margin-bottom: 0; }
+</style>
+
+<!-- Floating action button -->
+<div style="position:fixed;bottom:24px;right:24px;z-index:1200;">
+    <MudFab Color="Color.Primary"
+            StartIcon="@(_isOpen ? Icons.Material.Filled.Close : Icons.Material.Filled.AutoAwesome)"
+            Size="Size.Large"
+            OnClick="ToggleChat" />
+</div>
+
+<!-- Chat panel -->
+@if (_isOpen)
+{
+    <div class="chatbot-panel"
+         style="position:fixed;bottom:90px;right:24px;z-index:1100;width:390px;display:flex;flex-direction:column;border-radius:16px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,0.28);">
+
+        <!-- Header -->
+        <div style="background:var(--mud-palette-primary);padding:13px 16px;">
+            <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@HeaderIcon" Style="color:white;font-size:18px;" />
+                    <MudText Typo="Typo.subtitle2" Style="color:white;font-weight:600;letter-spacing:0.2px;">@HeaderTitle</MudText>
+                </MudStack>
+                @if (Context == ChatBotContext.Dashboard)
+                {
+                    <MudText Typo="Typo.caption" Style="color:rgba(255,255,255,0.65);">@_monthDisplay</MudText>
+                }
+            </MudStack>
+        </div>
+
+        <!-- Messages -->
+        <div id="chat-messages"
+             style="height:380px;overflow-y:auto;padding:16px 14px;background:var(--mud-palette-surface);display:flex;flex-direction:column;gap:10px;">
+
+            @if (_messages.Count == 0 && !_thinking && Context == ChatBotContext.Dashboard)
+            {
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;opacity:0.75;">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Primary" Style="font-size:38px;margin-bottom:10px;" />
+                    <MudText Typo="Typo.body2" Style="margin-bottom:8px;">Ask me about your @_monthDisplay finances</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        "What's my biggest expense?"<br />
+                        "Am I on track with my budget?"<br />
+                        "Where can I save money?"
+                    </MudText>
+                </div>
+            }
+
+            @foreach (var msg in _messages)
+            {
+                <div style="display:flex;@(msg.Role == "user" ? "justify-content:flex-end" : "justify-content:flex-start")">
+                    <div class="chat-bubble @BubbleClass(msg.Role)"
+                         style="border-radius:@(msg.Role == "user" ? "14px 14px 3px 14px" : "14px 14px 14px 3px")">
+                        @RenderMarkdown(msg.Content)
+                    </div>
+                </div>
+            }
+
+            @if (_thinking)
+            {
+                <div style="display:flex;justify-content:flex-start;">
+                    <div class="chat-bubble chat-msg-assistant" style="border-radius:14px 14px 14px 3px;display:flex;align-items:center;gap:6px;">
+                        <MudProgressCircular Size="Size.Small" Indeterminate Color="Color.Primary" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Thinking…</MudText>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Input bar -->
+        <div style="padding:12px 14px;background:var(--mud-palette-surface);border-top:1px solid var(--mud-palette-lines-default);">
+            <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+                <MudTextField @bind-Value="_input"
+                              Placeholder="@InputPlaceholder"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Style="flex:1"
+                              Disabled="@_thinking"
+                              OnKeyDown="@HandleKey"
+                              Immediate="true" />
+                <MudIconButton Icon="@Icons.Material.Filled.Send"
+                               Color="Color.Primary"
+                               Size="Size.Medium"
+                               Disabled="@(_thinking || string.IsNullOrWhiteSpace(_input))"
+                               OnClick="Send" />
+            </MudStack>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public ChatBotContext Context { get; set; } = ChatBotContext.Dashboard;
+    [Parameter] public EventCallback<BudgetDraft> OnDraftReady { get; set; }
+
+    private bool   _isOpen   = false;
+    private bool   _thinking = false;
+    private string _input    = "";
+    private string _monthDisplay = "";
+
+    private readonly List<ChatTurn> _messages = [];
+
+    // ── Header helpers ────────────────────────────────────────────────────
+
+    private string HeaderTitle => Context switch
+    {
+        ChatBotContext.BudgetPlanner => "Budget Planner AI",
+        _                           => "Finance Assistant"
+    };
+
+    private string HeaderIcon => Context switch
+    {
+        ChatBotContext.BudgetPlanner => Icons.Material.Filled.Savings,
+        _                           => Icons.Material.Filled.AutoAwesome
+    };
+
+    private string InputPlaceholder => Context switch
+    {
+        ChatBotContext.BudgetPlanner => "Reply here…",
+        _                           => "Ask about your finances…"
+    };
+
+    private static string BubbleClass(string role) => role switch
+    {
+        "user"    => "chat-msg-user",
+        "success" => "chat-msg-success",
+        _         => "chat-msg-assistant"
+    };
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────
+
+    protected override void OnInitialized()
+    {
+        MonthSvc.OnChange += OnMonthChanged;
+        RefreshMonthDisplay();
+    }
+
+    private void RefreshMonthDisplay() =>
+        _monthDisplay = MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture);
+
+    private void OnMonthChanged()
+    {
+        RefreshMonthDisplay();
+        if (Context == ChatBotContext.Dashboard)
+            _messages.Clear();
+        InvokeAsync(StateHasChanged);
+    }
+
+    // ── Open / close ──────────────────────────────────────────────────────
+
+    private void ToggleChat()
+    {
+        _isOpen = !_isOpen;
+        if (_isOpen && Context == ChatBotContext.BudgetPlanner && _messages.Count == 0)
+            _messages.Add(new ChatTurn("assistant", BudgetPlannerGreeting));
+    }
+
+    private const string BudgetPlannerGreeting =
+        "Hi! I can help you create a new budget draft. How would you like to start?\n\n" +
+        "- **A) Current categories** — keep your existing structure and adjust the amounts\n" +
+        "- **B) Spending trends** — I'll suggest categories based on how you've actually been spending\n" +
+        "- **C) From scratch** — define entirely new categories from the ground up";
+
+    // ── Send ──────────────────────────────────────────────────────────────
+
+    private async Task HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+            await Send();
+    }
+
+    private async Task Send()
+    {
+        var text = _input.Trim();
+        if (string.IsNullOrEmpty(text) || _thinking) return;
+
+        _input    = "";
+        _thinking = true;
+        _messages.Add(new ChatTurn("user", text));
+        StateHasChanged();
+        await ScrollToBottom();
+
+        var history = _messages.Take(_messages.Count - 1)
+            .Where(m => m.Role is "user" or "assistant")
+            .Select(m => new ChatService.ChatTurn(m.Role, m.Content))
+            .ToList();
+
+        string? raw = Context == ChatBotContext.BudgetPlanner
+            ? await ChatSvc.SendBudgetAsync(text, history)
+            : await ChatSvc.SendAsync(MonthSvc.Month.ToString("yyyy-MM"), text, history);
+
+        _thinking = false;
+
+        if (raw is null)
+        {
+            _messages.Add(new ChatTurn("assistant",
+                "Sorry, I couldn't reach the assistant. Make sure the server is running."));
+        }
+        else
+        {
+            var draft = Context == ChatBotContext.BudgetPlanner ? TryParseDraft(raw) : null;
+
+            // Strip the machine block from the visible response
+            var visible = draft is not null ? StripDraftMarkers(raw) : raw;
+            if (!string.IsNullOrWhiteSpace(visible))
+                _messages.Add(new ChatTurn("assistant", visible.Trim()));
+
+            if (draft is not null)
+            {
+                _messages.Add(new ChatTurn("success",
+                    $"Draft **\"{draft.Name}\"** has been created and added to your Budget Planner!"));
+                await OnDraftReady.InvokeAsync(draft);
+            }
+        }
+
+        StateHasChanged();
+        await ScrollToBottom();
+    }
+
+    // ── Draft parsing ─────────────────────────────────────────────────────
+
+    private static BudgetDraft? TryParseDraft(string raw)
+    {
+        const string startTag = "<<CREATE_DRAFT>>";
+        const string endTag   = "<<END_DRAFT>>";
+
+        var start = raw.IndexOf(startTag, StringComparison.Ordinal);
+        var end   = raw.IndexOf(endTag,   StringComparison.Ordinal);
+        if (start < 0 || end <= start) return null;
+
+        var json = raw[(start + startTag.Length)..end].Trim();
+        try
+        {
+            var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var data = JsonSerializer.Deserialize<AiDraftData>(json, opts);
+            if (data is null) return null;
+            return new BudgetDraft
+            {
+                Name     = data.Name,
+                Expenses = data.Expenses.Select(r => new DraftRow { Name = r.Name, Amount = r.Amount, Color = r.Color }).ToList(),
+                Revenue  = data.Revenue.Select(r  => new DraftRow { Name = r.Name, Amount = r.Amount, Color = r.Color }).ToList()
+            };
+        }
+        catch { return null; }
+    }
+
+    private static string StripDraftMarkers(string raw)
+    {
+        const string startTag = "<<CREATE_DRAFT>>";
+        const string endTag   = "<<END_DRAFT>>";
+        var start = raw.IndexOf(startTag, StringComparison.Ordinal);
+        if (start < 0) return raw;
+        var end = raw.IndexOf(endTag, StringComparison.Ordinal);
+        var after = end >= 0 ? raw[(end + endTag.Length)..] : "";
+        return (raw[..start] + after).Trim();
+    }
+
+    // ── Scroll ────────────────────────────────────────────────────────────
+
+    private async Task ScrollToBottom()
+    {
+        try { await JS.InvokeVoidAsync("scrollChatToBottom", "chat-messages"); }
+        catch { }
+    }
+
+    public void Dispose() => MonthSvc.OnChange -= OnMonthChanged;
+
+    // ── Markdown renderer ─────────────────────────────────────────────────
+
+    private static MarkupString RenderMarkdown(string raw)
+    {
+        if (string.IsNullOrEmpty(raw)) return (MarkupString)"";
+
+        var lines = raw.Replace("\r\n", "\n").Split('\n');
+        var html  = new System.Text.StringBuilder();
+        bool inUl = false;
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.TrimStart();
+            bool isBullet = trimmed.StartsWith("- ")  ||
+                            trimmed.StartsWith("* ")  ||
+                            trimmed.StartsWith("• ");
+
+            if (isBullet)
+            {
+                if (!inUl) { html.Append("<ul>"); inUl = true; }
+                html.Append("<li>")
+                    .Append(Inline(WebUtility.HtmlEncode(trimmed[2..])))
+                    .Append("</li>");
+            }
+            else
+            {
+                if (inUl) { html.Append("</ul>"); inUl = false; }
+                if (!string.IsNullOrWhiteSpace(line))
+                    html.Append("<p>")
+                        .Append(Inline(WebUtility.HtmlEncode(line)))
+                        .Append("</p>");
+            }
+        }
+
+        if (inUl) html.Append("</ul>");
+        return (MarkupString)html.ToString();
+    }
+
+    private static string Inline(string s)
+    {
+        s = Regex.Replace(s, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+        s = Regex.Replace(s, @"\*(.+?)\*",     "<em>$1</em>");
+        s = Regex.Replace(s, @"_(.+?)_",       "<em>$1</em>");
+        return s;
+    }
+
+    // ── Types ─────────────────────────────────────────────────────────────
+
+    private record ChatTurn(string Role, string Content);
+    private record AiDraftData(string Name, AiDraftRow[] Expenses, AiDraftRow[] Revenue);
+    private record AiDraftRow(string Name, decimal Amount, string Color);
+}

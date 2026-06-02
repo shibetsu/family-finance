@@ -108,7 +108,7 @@ else
 
     private async Task AddCategory()
     {
-        var category = new BudgetCategory();
+        var category = new BudgetCategory { Color = ColorPalette.Random() };
         var parameters = new DialogParameters<CategoryDialog> { { x => x.Category, category } };
         var dialog = await DialogSvc.ShowAsync<CategoryDialog>("Add Category", parameters, _dialogOptions);
         if ((await dialog.Result) is { Canceled: false })

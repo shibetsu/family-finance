@@ -1,29 +1,37 @@
+@using FinTool.Models
+
 <MudDialog>
     <DialogContent>
         <MudForm @ref="_form">
-            <MudTextField @bind-Value="Category.Name"
-                          Label="Category name"
+            <MudTextField @bind-Value="Goal.Name"
+                          Label="Goal name"
                           Required="true"
                           RequiredError="Name is required."
                           Immediate="true"
                           Class="mb-3" />
             <MudNumericField T="decimal"
-                             @bind-Value="Category.MonthlyAmount"
-                             Label="Monthly budget (CAD)"
+                             @bind-Value="Goal.TargetAmount"
+                             Label="Target amount (CAD)"
+                             Min="0.01m"
+                             Format="F2"
+                             Adornment="Adornment.Start"
+                             AdornmentText="$"
+                             Class="mb-3" />
+            <MudNumericField T="decimal"
+                             @bind-Value="Goal.CurrentAmount"
+                             Label="Starting balance (CAD)"
                              Min="0"
                              Format="F2"
                              Adornment="Adornment.Start"
                              AdornmentText="$"
-                             Class="mb-4" />
+                             Class="mb-3" />
+            <MudTextField @bind-Value="Goal.Notes"
+                          Label="Notes (optional)"
+                          Lines="2"
+                          Class="mb-4" />
 
             <MudText Typo="Typo.caption" Class="mb-2">Colour</MudText>
             <ColorPicker @bind-Value="_color" />
-
-            <MudSwitch T="bool"
-                       @bind-Value="Category.IsIgnored"
-                       Color="Color.Warning"
-                       Label="Exclude from dashboard and totals"
-                       Class="mt-4" />
         </MudForm>
     </DialogContent>
     <DialogActions>
@@ -34,19 +42,19 @@
 
 @code {
     [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter]          public BudgetCategory Category { get; set; } = default!;
+    [Parameter]          public Goal Goal            { get; set; } = default!;
 
     private MudForm _form  = default!;
     private string  _color = ColorPalette.Random();
 
-    protected override void OnParametersSet() => _color = Category.Color;
+    protected override void OnParametersSet() => _color = Goal.Color;
 
     private async Task Submit()
     {
         await _form.Validate();
         if (_form.IsValid)
         {
-            Category.Color = _color;
+            Goal.Color = _color;
             MudDialog.Close(DialogResult.Ok(true));
         }
     }

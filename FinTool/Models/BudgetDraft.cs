@@ -6,6 +6,7 @@ public class BudgetDraft
     public string        Name     { get; set; } = "Draft";
     public List<DraftRow> Expenses { get; set; } = [];
     public List<DraftRow> Revenue  { get; set; } = [];
+    public string        Notes    { get; set; } = "";
 }
 
 public class DraftRow

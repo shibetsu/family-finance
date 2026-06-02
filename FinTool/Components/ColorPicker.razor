@@ -1,0 +1,35 @@
+<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+    @foreach (var swatch in ColorPalette.Soft)
+    {
+        var s   = swatch;
+        var sel = string.Equals(Value, s, StringComparison.OrdinalIgnoreCase);
+        <div @onclick="@(() => ValueChanged.InvokeAsync(s))"
+             title="@s"
+             style="width:28px;height:28px;border-radius:50%;background:@s;cursor:pointer;flex-shrink:0;
+                    @(sel
+                        ? $"box-shadow:0 0 0 2.5px var(--mud-palette-surface),0 0 0 4.5px {s};transform:scale(1.1)"
+                        : "box-shadow:0 1px 3px rgba(0,0,0,.25)")">
+        </div>
+    }
+    <!-- Native picker trigger: shows custom colour or rainbow gradient -->
+    <div style="position:relative;width:28px;height:28px;flex-shrink:0" title="Custom colour">
+        <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;pointer-events:none;
+                    @(_isCustom
+                        ? $"background:{Value};box-shadow:0 0 0 2.5px var(--mud-palette-surface),0 0 0 4.5px {Value}"
+                        : "background:conic-gradient(from 0deg,#E07878,#D4B860,#50B898,#5898D0,#A870C8,#E07878);box-shadow:0 1px 3px rgba(0,0,0,.25)")">
+        </div>
+        <input type="color" value="@Value"
+               @onchange="@(e => ValueChanged.InvokeAsync(e.Value?.ToString() ?? Value))"
+               style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%" />
+    </div>
+</div>
+
+@using System.Globalization
+
+@code {
+    [Parameter] public string Value { get; set; } = "#594AE2";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    private bool _isCustom =>
+        !ColorPalette.Soft.Any(s => string.Equals(s, Value, StringComparison.OrdinalIgnoreCase));
+}

@@ -18,9 +18,13 @@ builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<MerchantCacheService>();
 builder.Services.AddScoped<RevenueCategoryService>();
 builder.Services.AddScoped<ClaudeService>();
+builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<RecurringService>();
 builder.Services.AddScoped<ClosedMonthService>();
 builder.Services.AddScoped<TransactionFilterState>();
 builder.Services.AddScoped<MonthState>();
 builder.Services.AddScoped<BudgetPlannerService>();
+builder.Services.AddScoped<GoalService>();
 
 await builder.Build().RunAsync();
