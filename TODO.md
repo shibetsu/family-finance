@@ -1,5 +1,7 @@
 ## Things to do 
 - Rename "Settings" to "Budget"
+- Update the Readme.md file
+- Add .gitignore for the ".claude" directory
 
 ### Transactions page
 - When Adding, check for duplicate transactions and ask the user to decide if it is a duplicate or not

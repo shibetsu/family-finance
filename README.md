@@ -8,6 +8,12 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 
 ## Features
 
+### Authentication
+- JWT-based login protects all pages and API endpoints
+- Default seed account: **Admin / Admin123!** (change on first run)
+- Token is stored in browser `sessionStorage` and sent as a Bearer header on every API request
+- Unauthenticated users are redirected to `/login` automatically
+
 ### Global Month Picker
 - The month selector lives in the **top app bar** and is shared across all pages — changing it on one page changes it everywhere
 - Prev/next chevrons navigate month by month; the forward arrow is disabled on the current month
@@ -59,6 +65,11 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 - Categories marked as ignored are excluded from dashboard totals and charts
 - Color changes take effect immediately across charts, breakdowns, and the Planner
 
+### Users *(Owner only)*
+- The **Owner** role can add, edit, and delete user accounts from the Users page (`/users`)
+- Each user has a username, optional display name, optional email, and a role (Owner or Member)
+- Owners cannot delete their own account
+
 ---
 
 ## Architecture
@@ -70,12 +81,14 @@ family-finance/
 │   │   ├── ColorPicker.razor         # Swatch row + native picker fallback (used in dialogs)
 │   │   ├── InlineColorPicker.razor   # Compact circle that opens floating swatch panel (used in tables)
 │   │   ├── CategoryDialog.razor / RevenueCategoryDialog.razor / GoalDialog.razor
+│   │   ├── AddUserDialog.razor / EditUserDialog.razor
 │   │   ├── BudgetTab.razor / RevenueTab.razor
 │   │   ├── TransactionsTab.razor / ImportDialog.razor
 │   │   ├── DashboardTab.razor
 │   │   └── ChatBot.razor
 │   ├── Layout/
-│   │   └── MainLayout.razor          # App shell, global month picker, drawer, theme
+│   │   ├── MainLayout.razor          # App shell, global month picker, drawer, theme, logout button
+│   │   └── LoginLayout.razor         # Minimal centered layout for the login page
 │   ├── Models/
 │   │   ├── Transaction.cs            # Amount: positive=expense, negative=income; GoalId nullable
 │   │   ├── BudgetCategory.cs / RevenueCategory.cs
@@ -83,12 +96,16 @@ family-finance/
 │   │   ├── Goal.cs
 │   │   └── Account.cs
 │   ├── Pages/
+│   │   ├── Login.razor               # /login — public, uses LoginLayout
 │   │   ├── Dashboard.razor / Transactions.razor / Recurring.razor
-│   │   ├── BudgetPlanner.razor       # /planner
+│   │   ├── BudgetPlanner.razor       # /planner (formerly /budget-planner)
 │   │   ├── Goals.razor               # /goals
 │   │   ├── Accounts.razor            # /accounts
-│   │   └── Settings.razor            # /settings — embeds BudgetTab + RevenueTab side by side
+│   │   ├── Settings.razor            # /settings — embeds BudgetTab + RevenueTab side by side
+│   │   └── Users.razor               # /users — Owner only
 │   ├── Services/
+│   │   ├── AuthService.cs            # Login, token storage, user CRUD
+│   │   ├── AuthHeaderHandler.cs      # DelegatingHandler — injects Bearer token on every request
 │   │   ├── MonthState.cs             # Global selected month — shared across all pages via OnChange event
 │   │   ├── TransactionFilterState.cs # Persists category filter across navigation
 │   │   ├── TransactionService.cs / BudgetService.cs / RevenueCategoryService.cs
@@ -101,7 +118,7 @@ family-finance/
 │   └── NavIcons.cs                   # SVG letter-in-box icons for navigation
 │
 └── FinTool.Server/                   # ASP.NET Core minimal API (port 5111)
-    └── Program.cs                    # EF Core DbContext, all endpoints, RunClaudeAsync helper
+    └── Program.cs                    # EF Core DbContext, all endpoints, JWT auth, RunClaudeAsync helper
 ```
 
 ### Data flow
@@ -157,15 +174,21 @@ dotnet watch --project FinTool --launch-profile http
 
 **Fresh clone:** run `dotnet restore` once before the above if packages haven't been downloaded yet.
 
+**Default credentials:** `Admin` / `Admin123!` — change the password after the first login via the Users page.
+
 ---
 
 ## How to Use
 
-### 1. Set up categories
+### 1. Sign in
+
+Open the app and sign in with the default credentials (`Admin` / `Admin123!`). You can add more users and change passwords from the **Users** page once logged in.
+
+### 2. Set up categories
 
 Go to **Settings** and create your expense categories (name, monthly budget, color) and income categories. Mark anything you don't want affecting your totals (transfers, savings moves) as ignored.
 
-### 2. Import transactions
+### 3. Import transactions
 
 1. Log into [AccèsD](https://accesd.desjardins.com), navigate to your account's transaction history, and **select all and copy** the table.
 2. In Family Finance, click **Import** (top right of the Transactions page).
@@ -174,19 +197,19 @@ Go to **Settings** and create your expense categories (name, monthly budget, col
 5. Review the suggested categories. Adjust any that are wrong. Income transactions are automatically flagged as revenue.
 6. Click **Confirm All** to save.
 
-### 3. Tag accounts and goals
+### 4. Tag accounts and goals
 
 After importing, use the **Account** and **Goal** dropdowns directly in each transaction row to assign which account the transaction belongs to and whether it contributes to a savings goal.
 
-### 4. Close a month
+### 5. Close a month
 
 Once a month is fully reviewed, click **Close Month** in the Transactions header. This locks all transactions for that month — dropdowns become read-only and the delete button is hidden. Useful to protect historical data when you later rename categories.
 
-### 5. Plan future budgets
+### 6. Plan future budgets
 
 Open **Planner** from the navigation. Click **Import history** to seed a draft from your actual recent spending, or **New Draft** to start from scratch. Once you're happy with a draft, click **Apply to Settings** to make it your live budget.
 
-### 6. Track savings goals
+### 7. Track savings goals
 
 Open **Goals**, add a goal with a target amount and optional starting balance. Then tag transactions to that goal from the Transactions page — progress updates automatically.
 
@@ -208,10 +231,11 @@ All application data is persisted in a **SQLite database** managed by `FinTool.S
 | `BudgetDrafts` | Planner drafts; `ExpensesJson` and `RevenueJson` stored as JSON text columns |
 | `MerchantCache` | Learned description → category mappings (PK is normalised uppercase description) |
 | `ClosedMonths` | Locked month keys (`"yyyy-MM"`) |
+| `Users` | Usernames, hashed passwords, display names, emails, and roles |
 
 The schema is created automatically on first startup — no migrations to run. Columns added to existing tables use `ALTER TABLE … ADD COLUMN` wrapped in `try/catch` so they're applied once and ignored on subsequent starts.
 
-**Dark mode preference** is the only thing stored in browser `localStorage` (key `fintool_darkmode`).
+**Dark mode preference** is the only thing stored in browser `localStorage` (key `fintool_darkmode`). The JWT session token is stored in `sessionStorage`.
 
 > Back up or copy `family-finance.db` to migrate to another machine.
 
@@ -219,7 +243,18 @@ The schema is created automatically on first startup — no migrations to run. C
 
 ## API Reference (FinTool.Server)
 
-`FinTool.Server` is a minimal ASP.NET Core app running on `http://localhost:5111`. All responses use PascalCase JSON.
+`FinTool.Server` is a minimal ASP.NET Core app running on `http://localhost:5111`. All responses use PascalCase JSON. All endpoints except `/api/auth/login` and `/api/ping` require a valid Bearer token.
+
+### Authentication
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/login` | Public | Exchange username + password for a JWT |
+| `GET` | `/api/auth/validate` | Required | Check whether the current token is still valid |
+| `GET` | `/api/auth/users` | Owner only | List all user accounts |
+| `POST` | `/api/auth/register` | Owner only | Create a new user account |
+| `PUT` | `/api/auth/users/{id}` | Required | Update own or (Owner) any user's profile |
+| `DELETE` | `/api/auth/users/{id}` | Owner only | Delete a user account |
 
 ### Transactions
 
@@ -265,7 +300,7 @@ The schema is created automatically on first startup — no migrations to run. C
 | `POST` | `/api/merchant-cache/set` | Store a description → category mapping |
 | `GET` | `/api/closed-months` | All locked month keys |
 | `POST` | `/api/closed-months` | Lock a month |
-| `GET` | `/api/ping` | Health check |
+| `GET` | `/api/ping` | Health check (public) |
 
 ### AI Classification & Chat
 
@@ -307,4 +342,4 @@ French month abbreviations are supported (jan, janv, fév, mar, avr, mai, juin, 
 | Body font | [Inter](https://fonts.google.com/specimen/Inter) |
 | AI | [Claude Code CLI](https://claude.ai/code) (local, via `FinTool.Server`) |
 | Database | SQLite via [EF Core 8](https://learn.microsoft.com/ef/core/) |
-| Backend | ASP.NET Core minimal API (.NET 8) |
+| Backend | ASP.NET Core minimal API (.NET 8) with JWT Bearer authentication |
