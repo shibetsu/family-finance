@@ -1,7 +1,13 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 
 // ---------------------------------------------------------------------------
 // Database path  (%LocalAppData%\FamilyFinance\family-finance.db)
@@ -9,6 +15,12 @@ using Microsoft.EntityFrameworkCore;
 var dbDir  = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FamilyFinance");
 var dbPath = Path.Combine(dbDir, "family-finance.db");
 Directory.CreateDirectory(dbDir);
+
+// ---------------------------------------------------------------------------
+// JWT
+// ---------------------------------------------------------------------------
+const string JwtSecret = "FamilyFinanceLocalSecretKey2024$NotForProduction";
+var jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret));
 
 // ---------------------------------------------------------------------------
 // Builder
@@ -20,6 +32,21 @@ builder.Services.AddCors(o =>
 
 builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dbPath}"));
 
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(o =>
+    {
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer           = false,
+            ValidateAudience         = false,
+            ValidateLifetime         = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey         = jwtKey
+        };
+    });
+builder.Services.AddAuthorization(o =>
+    o.AddPolicy("OwnerOnly", p => p.RequireRole("Owner")));
+
 // PascalCase responses to match Blazor model property names;
 // case-insensitive reads so PostAsJsonAsync (camelCase) also binds correctly
 builder.Services.ConfigureHttpJsonOptions(o =>
@@ -30,6 +57,8 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 
 var app = builder.Build();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Ensure schema exists on every startup (idempotent)
 using (var scope = app.Services.CreateScope())
@@ -64,23 +93,113 @@ using (var scope = app.Services.CreateScope())
             CurrentAmount REAL NOT NULL DEFAULT 0,
             Notes         TEXT NOT NULL DEFAULT ''
         )");
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS Users (
+            Id           TEXT NOT NULL PRIMARY KEY,
+            Username     TEXT NOT NULL UNIQUE,
+            PasswordHash TEXT NOT NULL,
+            Salt         TEXT NOT NULL
+        )");
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Users ADD COLUMN Email TEXT NOT NULL DEFAULT ''"); }
+    catch { /* column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Users ADD COLUMN DisplayName TEXT NOT NULL DEFAULT ''"); }
+    catch { /* column already exists */ }
+    // Existing rows get 'Owner' so the seeded Admin keeps full access
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Users ADD COLUMN Role TEXT NOT NULL DEFAULT 'Owner'"); }
+    catch { /* column already exists */ }
+    if (!db.Users.Any())
+    {
+        var (hash, salt) = HashPassword("Admin123!");
+        db.Users.Add(new UserEntity { Id = Guid.NewGuid(), Username = "Admin", PasswordHash = hash, Salt = salt });
+        db.SaveChanges();
+    }
 }
 
 // ---------------------------------------------------------------------------
-// Health
+// Health  (public)
 // ---------------------------------------------------------------------------
 app.MapGet("/api/ping", () => Results.Ok(new { status = "ok" }));
 
 // ---------------------------------------------------------------------------
+// Auth  (login is public; register / list / delete require auth)
+// ---------------------------------------------------------------------------
+app.MapPost("/api/auth/login", async (LoginRequest req, AppDbContext db) =>
+{
+    var user = await db.Users.FirstOrDefaultAsync(u => u.Username == req.Username);
+    if (user is null || !VerifyPassword(req.Password, user.PasswordHash, user.Salt))
+        return Results.Unauthorized();
+    return Results.Ok(new { Token = GenerateToken(user.Username, user.DisplayName, user.Role, jwtKey), Username = user.Username });
+});
+
+app.MapPost("/api/auth/register", async (RegisterRequest req, AppDbContext db) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
+        return Results.BadRequest(new { Error = "Username and password are required." });
+    if (await db.Users.AnyAsync(u => u.Username == req.Username))
+        return Results.BadRequest(new { Error = "Username already exists." });
+    var role = req.Role is "Owner" or "User" ? req.Role : "User";
+    var (hash, salt) = HashPassword(req.Password);
+    db.Users.Add(new UserEntity { Id = Guid.NewGuid(), Username = req.Username, PasswordHash = hash, Salt = salt, Email = req.Email ?? "", DisplayName = req.DisplayName ?? "", Role = role });
+    await db.SaveChangesAsync();
+    return Results.Ok();
+}).RequireAuthorization("OwnerOnly");
+
+app.MapPut("/api/auth/users/{id:guid}", async (Guid id, UpdateUserRequest req, AppDbContext db) =>
+{
+    var user = await db.Users.FindAsync(id);
+    if (user is null) return Results.NotFound();
+    if (!string.IsNullOrWhiteSpace(req.Username) && req.Username != user.Username)
+    {
+        if (await db.Users.AnyAsync(u => u.Username == req.Username))
+            return Results.BadRequest(new { Error = "Username already exists." });
+        user.Username = req.Username;
+    }
+    if (req.Email is not null)
+        user.Email = req.Email;
+    if (req.DisplayName is not null)
+        user.DisplayName = req.DisplayName;
+    if (req.Role is "Owner" or "User")
+        user.Role = req.Role;
+    if (!string.IsNullOrWhiteSpace(req.Password))
+    {
+        var (hash, salt) = HashPassword(req.Password);
+        user.PasswordHash = hash;
+        user.Salt         = salt;
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok();
+}).RequireAuthorization();
+
+app.MapGet("/api/auth/users", async (AppDbContext db) =>
+    await db.Users.Select(u => new { u.Id, u.Username, u.Email, u.DisplayName, u.Role }).ToListAsync()
+).RequireAuthorization("OwnerOnly");
+
+app.MapDelete("/api/auth/users/{id:guid}", async (Guid id, AppDbContext db) =>
+{
+    var user = await db.Users.FindAsync(id);
+    if (user is null) return Results.NotFound();
+    db.Users.Remove(user);
+    await db.SaveChangesAsync();
+    return Results.Ok();
+}).RequireAuthorization("OwnerOnly");
+
+// Lightweight token validation — lets the client confirm a stored token is still accepted
+app.MapGet("/api/auth/validate", () => Results.Ok()).RequireAuthorization();
+
+// ---------------------------------------------------------------------------
+// All remaining endpoints require authorization
+// ---------------------------------------------------------------------------
+var api = app.MapGroup("").RequireAuthorization();
+
+// ---------------------------------------------------------------------------
 // Transactions
 // ---------------------------------------------------------------------------
-app.MapGet("/api/transactions", async (AppDbContext db) =>
+api.MapGet("/api/transactions", async (AppDbContext db) =>
     await db.Transactions.OrderByDescending(t => t.Date).ThenBy(t => t.Description).ToListAsync());
 
-app.MapPost("/api/transactions/batch", async (TxEntity[] incoming, AppDbContext db) =>
+api.MapPost("/api/transactions/batch", async (TxEntity[] incoming, AppDbContext db) =>
 {
     var added = 0;
-    // Load minimal set for dup detection rather than hitting DB per row
     var existing = (await db.Transactions
         .Select(t => $"{t.Date}|{t.Description}|{t.Amount}")
         .ToListAsync())
@@ -96,7 +215,7 @@ app.MapPost("/api/transactions/batch", async (TxEntity[] incoming, AppDbContext 
     return Results.Ok(new { added });
 });
 
-app.MapPut("/api/transactions/{id:guid}", async (Guid id, TxEntity updated, AppDbContext db) =>
+api.MapPut("/api/transactions/{id:guid}", async (Guid id, TxEntity updated, AppDbContext db) =>
 {
     var tx = await db.Transactions.FindAsync(id);
     if (tx is null) return Results.NotFound();
@@ -109,7 +228,7 @@ app.MapPut("/api/transactions/{id:guid}", async (Guid id, TxEntity updated, AppD
     return Results.Ok();
 });
 
-app.MapDelete("/api/transactions/{id:guid}", async (Guid id, AppDbContext db) =>
+api.MapDelete("/api/transactions/{id:guid}", async (Guid id, AppDbContext db) =>
 {
     var tx = await db.Transactions.FindAsync(id);
     if (tx is null) return Results.NotFound();
@@ -118,7 +237,7 @@ app.MapDelete("/api/transactions/{id:guid}", async (Guid id, AppDbContext db) =>
     return Results.Ok();
 });
 
-app.MapPost("/api/transactions/batch-delete", async (Guid[] ids, AppDbContext db) =>
+api.MapPost("/api/transactions/batch-delete", async (Guid[] ids, AppDbContext db) =>
 {
     await db.Transactions.Where(t => ids.Contains(t.Id)).ExecuteDeleteAsync();
     return Results.Ok();
@@ -127,10 +246,10 @@ app.MapPost("/api/transactions/batch-delete", async (Guid[] ids, AppDbContext db
 // ---------------------------------------------------------------------------
 // Budget categories
 // ---------------------------------------------------------------------------
-app.MapGet("/api/budget-categories", async (AppDbContext db) =>
+api.MapGet("/api/budget-categories", async (AppDbContext db) =>
     await db.BudgetCategories.ToListAsync());
 
-app.MapPost("/api/budget-categories", async (BudgetCategoryEntity cat, AppDbContext db) =>
+api.MapPost("/api/budget-categories", async (BudgetCategoryEntity cat, AppDbContext db) =>
 {
     var existing = await db.BudgetCategories.FindAsync(cat.Id);
     if (existing is null)
@@ -148,7 +267,7 @@ app.MapPost("/api/budget-categories", async (BudgetCategoryEntity cat, AppDbCont
     return Results.Ok();
 });
 
-app.MapDelete("/api/budget-categories/{id:guid}", async (Guid id, AppDbContext db) =>
+api.MapDelete("/api/budget-categories/{id:guid}", async (Guid id, AppDbContext db) =>
 {
     var cat = await db.BudgetCategories.FindAsync(id);
     if (cat is null) return Results.NotFound();
@@ -160,10 +279,10 @@ app.MapDelete("/api/budget-categories/{id:guid}", async (Guid id, AppDbContext d
 // ---------------------------------------------------------------------------
 // Revenue categories
 // ---------------------------------------------------------------------------
-app.MapGet("/api/revenue-categories", async (AppDbContext db) =>
+api.MapGet("/api/revenue-categories", async (AppDbContext db) =>
     await db.RevenueCategories.ToListAsync());
 
-app.MapPost("/api/revenue-categories", async (RevenueCategoryEntity cat, AppDbContext db) =>
+api.MapPost("/api/revenue-categories", async (RevenueCategoryEntity cat, AppDbContext db) =>
 {
     var existing = await db.RevenueCategories.FindAsync(cat.Id);
     if (existing is null)
@@ -180,7 +299,7 @@ app.MapPost("/api/revenue-categories", async (RevenueCategoryEntity cat, AppDbCo
     return Results.Ok();
 });
 
-app.MapDelete("/api/revenue-categories/{id:guid}", async (Guid id, AppDbContext db) =>
+api.MapDelete("/api/revenue-categories/{id:guid}", async (Guid id, AppDbContext db) =>
 {
     var cat = await db.RevenueCategories.FindAsync(id);
     if (cat is null) return Results.NotFound();
@@ -192,10 +311,11 @@ app.MapDelete("/api/revenue-categories/{id:guid}", async (Guid id, AppDbContext 
 // ---------------------------------------------------------------------------
 // Accounts
 // ---------------------------------------------------------------------------
-app.MapGet("/api/accounts", async (AppDbContext db) =>
-    await db.Accounts.OrderBy(a => a.Name).ToListAsync());
+api.MapGet("/api/accounts", async (AppDbContext db) =>
+    await db.Accounts.OrderBy(a => a.Name).ToListAsync())
+    .RequireAuthorization("OwnerOnly");
 
-app.MapPost("/api/accounts", async (AccountEntity account, AppDbContext db) =>
+api.MapPost("/api/accounts", async (AccountEntity account, AppDbContext db) =>
 {
     var existing = await db.Accounts.FindAsync(account.Id);
     if (existing is null)
@@ -208,24 +328,24 @@ app.MapPost("/api/accounts", async (AccountEntity account, AppDbContext db) =>
     }
     await db.SaveChangesAsync();
     return Results.Ok();
-});
+}).RequireAuthorization("OwnerOnly");
 
-app.MapDelete("/api/accounts/{id:guid}", async (Guid id, AppDbContext db) =>
+api.MapDelete("/api/accounts/{id:guid}", async (Guid id, AppDbContext db) =>
 {
     var acct = await db.Accounts.FindAsync(id);
     if (acct is null) return Results.NotFound();
     db.Accounts.Remove(acct);
     await db.SaveChangesAsync();
     return Results.Ok();
-});
+}).RequireAuthorization("OwnerOnly");
 
 // ---------------------------------------------------------------------------
 // Goals
 // ---------------------------------------------------------------------------
-app.MapGet("/api/goals", async (AppDbContext db) =>
+api.MapGet("/api/goals", async (AppDbContext db) =>
     await db.Goals.OrderBy(g => g.Name).ToListAsync());
 
-app.MapPost("/api/goals", async (GoalEntity goal, AppDbContext db) =>
+api.MapPost("/api/goals", async (GoalEntity goal, AppDbContext db) =>
 {
     var existing = await db.Goals.FindAsync(goal.Id);
     if (existing is null)
@@ -242,7 +362,7 @@ app.MapPost("/api/goals", async (GoalEntity goal, AppDbContext db) =>
     return Results.Ok();
 });
 
-app.MapDelete("/api/goals/{id:guid}", async (Guid id, AppDbContext db) =>
+api.MapDelete("/api/goals/{id:guid}", async (Guid id, AppDbContext db) =>
 {
     var goal = await db.Goals.FindAsync(id);
     if (goal is null) return Results.NotFound();
@@ -254,17 +374,17 @@ app.MapDelete("/api/goals/{id:guid}", async (Guid id, AppDbContext db) =>
 // ---------------------------------------------------------------------------
 // Merchant cache
 // ---------------------------------------------------------------------------
-app.MapGet("/api/merchant-cache", async (AppDbContext db) =>
+api.MapGet("/api/merchant-cache", async (AppDbContext db) =>
     await db.MerchantCache.ToDictionaryAsync(m => m.Description, m => m.Category));
 
-app.MapPost("/api/merchant-cache/lookup", async (LookupRequest req, AppDbContext db) =>
+api.MapPost("/api/merchant-cache/lookup", async (LookupRequest req, AppDbContext db) =>
 {
     var key   = req.Description.Trim().ToUpperInvariant();
     var entry = await db.MerchantCache.FindAsync(key);
     return entry is null ? Results.Ok(new { Category = (string?)null }) : Results.Ok(new { entry.Category });
 });
 
-app.MapPost("/api/merchant-cache/set", async (SetCacheRequest req, AppDbContext db) =>
+api.MapPost("/api/merchant-cache/set", async (SetCacheRequest req, AppDbContext db) =>
 {
     var key   = req.Description.Trim().ToUpperInvariant();
     var entry = await db.MerchantCache.FindAsync(key);
@@ -279,10 +399,10 @@ app.MapPost("/api/merchant-cache/set", async (SetCacheRequest req, AppDbContext 
 // ---------------------------------------------------------------------------
 // Closed months
 // ---------------------------------------------------------------------------
-app.MapGet("/api/closed-months", async (AppDbContext db) =>
+api.MapGet("/api/closed-months", async (AppDbContext db) =>
     await db.ClosedMonths.Select(m => m.MonthKey).ToListAsync());
 
-app.MapPost("/api/closed-months", async (CloseMonthRequest req, AppDbContext db) =>
+api.MapPost("/api/closed-months", async (CloseMonthRequest req, AppDbContext db) =>
 {
     if (!await db.ClosedMonths.AnyAsync(m => m.MonthKey == req.MonthKey))
     {
@@ -297,7 +417,7 @@ app.MapPost("/api/closed-months", async (CloseMonthRequest req, AppDbContext db)
 // ---------------------------------------------------------------------------
 var draftJsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-app.MapGet("/api/budget-drafts", async (AppDbContext db) =>
+api.MapGet("/api/budget-drafts", async (AppDbContext db) =>
     (await db.BudgetDrafts.ToListAsync()).Select(e => new
     {
         e.Id,
@@ -306,7 +426,7 @@ app.MapGet("/api/budget-drafts", async (AppDbContext db) =>
         Revenue  = JsonSerializer.Deserialize<object[]>(e.RevenueJson,  draftJsonOpts) ?? Array.Empty<object>()
     }));
 
-app.MapPut("/api/budget-drafts", async (BudgetDraftDto[] incoming, AppDbContext db) =>
+api.MapPut("/api/budget-drafts", async (BudgetDraftDto[] incoming, AppDbContext db) =>
 {
     db.BudgetDrafts.RemoveRange(await db.BudgetDrafts.ToListAsync());
     foreach (var d in incoming)
@@ -324,7 +444,7 @@ app.MapPut("/api/budget-drafts", async (BudgetDraftDto[] incoming, AppDbContext 
 // ---------------------------------------------------------------------------
 // AI classification
 // ---------------------------------------------------------------------------
-app.MapPost("/api/classify", async (ClassifyRequest req, CancellationToken ct) =>
+api.MapPost("/api/classify", async (ClassifyRequest req, CancellationToken ct) =>
 {
     if (req.Transactions.Length == 0 || req.Categories.Length == 0)
         return Results.Ok(Array.Empty<ClassifyResult>());
@@ -368,7 +488,7 @@ app.MapPost("/api/classify", async (ClassifyRequest req, CancellationToken ct) =
 // ---------------------------------------------------------------------------
 // Recurring transactions
 // ---------------------------------------------------------------------------
-app.MapGet("/api/recurring", async (AppDbContext db) =>
+api.MapGet("/api/recurring", async (AppDbContext db) =>
 {
     var allTx = await db.Transactions
         .Where(t => t.Amount != 0 && t.IsConfirmed)
@@ -418,7 +538,7 @@ app.MapGet("/api/recurring", async (AppDbContext db) =>
 // ---------------------------------------------------------------------------
 // Chat assistant
 // ---------------------------------------------------------------------------
-app.MapPost("/api/chat", async (ChatRequest req, AppDbContext db, CancellationToken ct) =>
+api.MapPost("/api/chat", async (ChatRequest req, AppDbContext db, CancellationToken ct) =>
 {
     var txs = await db.Transactions
         .Where(t => t.Date.StartsWith(req.Month + "-"))
@@ -506,13 +626,12 @@ app.MapPost("/api/chat", async (ChatRequest req, AppDbContext db, CancellationTo
 // ---------------------------------------------------------------------------
 // Budget planning assistant
 // ---------------------------------------------------------------------------
-app.MapPost("/api/chat/budget", async (BudgetChatRequest req, AppDbContext db, CancellationToken ct) =>
+api.MapPost("/api/chat/budget", async (BudgetChatRequest req, AppDbContext db, CancellationToken ct) =>
 {
     var budgetCats  = await db.BudgetCategories.OrderBy(c => c.Name).ToListAsync(ct);
     var revenueCats = await db.RevenueCategories.OrderBy(c => c.Name).ToListAsync(ct);
     var allTx       = await db.Transactions.ToListAsync(ct);
 
-    // Up to 3 contiguous months of history
     var today = DateOnly.FromDateTime(DateTime.Now);
     var histMonths = Enumerable.Range(1, 3)
         .Select(i => today.AddMonths(-i))
@@ -612,6 +731,44 @@ app.MapPost("/api/chat/budget", async (BudgetChatRequest req, AppDbContext db, C
 });
 
 app.Run("http://localhost:5111");
+
+// ---------------------------------------------------------------------------
+// Auth helpers
+// ---------------------------------------------------------------------------
+static string GenerateToken(string username, string displayName, string role, SymmetricSecurityKey key)
+{
+    var claims = new[]
+    {
+        new Claim("name", username),
+        new Claim("display_name", string.IsNullOrEmpty(displayName) ? username : displayName),
+        new Claim("role", role)
+    };
+    var creds  = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+    var token  = new JwtSecurityToken(
+        claims:             claims,
+        expires:            DateTime.UtcNow.AddDays(30),
+        signingCredentials: creds);
+    return new JwtSecurityTokenHandler().WriteToken(token);
+}
+
+static (string hash, string salt) HashPassword(string password)
+{
+    var saltBytes = RandomNumberGenerator.GetBytes(16);
+    var hashBytes = Rfc2898DeriveBytes.Pbkdf2(
+        Encoding.UTF8.GetBytes(password), saltBytes, 100_000,
+        HashAlgorithmName.SHA256, 32);
+    return (Convert.ToBase64String(hashBytes), Convert.ToBase64String(saltBytes));
+}
+
+static bool VerifyPassword(string password, string hash, string salt)
+{
+    var saltBytes = Convert.FromBase64String(salt);
+    var hashBytes = Rfc2898DeriveBytes.Pbkdf2(
+        Encoding.UTF8.GetBytes(password), saltBytes, 100_000,
+        HashAlgorithmName.SHA256, 32);
+    return CryptographicOperations.FixedTimeEquals(
+        hashBytes, Convert.FromBase64String(hash));
+}
 
 // ---------------------------------------------------------------------------
 // Claude runner
@@ -716,6 +873,17 @@ class BudgetDraftEntity
     public string RevenueJson  { get; set; } = "[]";
 }
 
+class UserEntity
+{
+    public Guid   Id           { get; set; } = Guid.NewGuid();
+    public string Username     { get; set; } = "";
+    public string PasswordHash { get; set; } = "";
+    public string Salt         { get; set; } = "";
+    public string Email        { get; set; } = "";
+    public string DisplayName  { get; set; } = "";
+    public string Role         { get; set; } = "User";
+}
+
 record DraftRowDto(string Name, string Color, decimal Amount);
 record BudgetDraftDto(Guid Id, string Name, DraftRowDto[] Expenses, DraftRowDto[] Revenue);
 
@@ -732,6 +900,7 @@ class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     public DbSet<BudgetDraftEntity>    BudgetDrafts     => Set<BudgetDraftEntity>();
     public DbSet<AccountEntity>        Accounts         => Set<AccountEntity>();
     public DbSet<GoalEntity>           Goals            => Set<GoalEntity>();
+    public DbSet<UserEntity>           Users            => Set<UserEntity>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -743,6 +912,7 @@ class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
         mb.Entity<BudgetDraftEntity>().ToTable("BudgetDrafts");
         mb.Entity<AccountEntity>().ToTable("Accounts");
         mb.Entity<GoalEntity>().ToTable("Goals");
+        mb.Entity<UserEntity>().ToTable("Users");
     }
 }
 
@@ -752,6 +922,9 @@ class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 record LookupRequest(string Description);
 record SetCacheRequest(string Description, string Category);
 record CloseMonthRequest(string MonthKey);
+record LoginRequest(string Username, string Password);
+record RegisterRequest(string Username, string Password, string? Email, string? DisplayName, string? Role);
+record UpdateUserRequest(string? Username, string? Email, string? DisplayName, string? Role, string? Password);
 
 record ClassifyRequest(
     [property: JsonPropertyName("transactions")] string[] Transactions,

@@ -3,6 +3,8 @@
 @inject LocalStorageService Storage
 @inject NavigationManager Nav
 @inject MonthState MonthSvc
+@inject AuthService Auth
+@inject AuthenticationStateProvider AuthStateProvider
 @using System.Globalization
 
 <MudThemeProvider Theme="_theme" IsDarkMode="_isDark" />
@@ -42,44 +44,49 @@
                Fixed="true"
                ClipMode="DrawerClipMode.Never"
                Elevation="2">
-        <MudDrawerHeader Class="py-4 px-4">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                <img src="fintool_preview.png" alt="Family Finance logo" style="height:32px;width:32px;object-fit:contain;" />
-                <MudText Typo="Typo.h6" Style="font-weight:700">Family Finance</MudText>
-            </MudStack>
-        </MudDrawerHeader>
+        <div style="display:flex;align-items:center;padding:16px;gap:8px">
+            <img src="fintool_preview.png" alt="Family Finance logo" style="height:32px;width:32px;object-fit:contain;" />
+            <MudText Typo="Typo.h6" Style="font-weight:700">Family Finance</MudText>
+        </div>
         <MudDivider Style="flex-grow:0" />
         <MudNavMenu Class="pa-2 pt-3">
-            <MudNavLink Href="/"
-                        Icon="@NavIcons.Dashboard"
-                        Match="NavLinkMatch.All">
-                Dashboard
-            </MudNavLink>
-            <MudNavLink Href="/transactions"
-                        Icon="@NavIcons.Transactions">
-                Transactions
-            </MudNavLink>
-            <MudNavLink Href="/recurring"
-                        Icon="@NavIcons.Recurring">
-                Recurring
-            </MudNavLink>
-            <MudNavLink Href="/budget-planner"
-                        Icon="@NavIcons.Planner">
-                Planner
-            </MudNavLink>
-            <MudNavLink Href="/goals"
-                        Icon="@NavIcons.Goals">
-                Goals
-            </MudNavLink>
-            <MudNavLink Href="/accounts"
-                        Icon="@NavIcons.Accounts">
-                Accounts
-            </MudNavLink>
-            <MudNavLink Href="/settings"
-                        Icon="@NavIcons.Settings">
-                Settings
-            </MudNavLink>
+            <MudNavLink Href="/" Icon="@NavIcons.Dashboard" Match="NavLinkMatch.All">Dashboard</MudNavLink>
+            <MudNavLink Href="/transactions" Icon="@NavIcons.Transactions">Transactions</MudNavLink>
+            <MudNavLink Href="/recurring" Icon="@NavIcons.Recurring">Recurring</MudNavLink>
+            <MudNavLink Href="/budget-planner" Icon="@NavIcons.Planner">Planner</MudNavLink>
+            <MudNavLink Href="/goals" Icon="@NavIcons.Goals">Goals</MudNavLink>
+            @if (_isOwner)
+            {
+                <MudNavLink Href="/accounts" Icon="@NavIcons.Accounts">Accounts</MudNavLink>
+            }
+            <MudNavLink Href="/settings" Icon="@NavIcons.Settings">Settings</MudNavLink>
+            @if (_isOwner)
+            {
+                <MudNavLink Href="/users" Icon="@NavIcons.Users">Users</MudNavLink>
+            }
         </MudNavMenu>
+        <MudDivider Style="margin-top:auto;flex-grow:0" />
+        <div style="display:flex;align-items:center;padding:12px 16px;gap:10px">
+            <MudAvatar Style="width:32px;height:32px;font-size:0.8rem;background:var(--mud-palette-primary);color:var(--mud-palette-primary-text);flex-shrink:0">
+                @(_displayName.Length > 0 ? _displayName[0].ToString().ToUpper() : "?")
+            </MudAvatar>
+            <div style="flex:1;overflow:hidden">
+                <MudText Style="font-size:0.875rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                    @_displayName
+                </MudText>
+                @if (_displayName != _username)
+                {
+                    <MudText Style="font-size:0.75rem;opacity:0.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                        @@@_username
+                    </MudText>
+                }
+            </div>
+            <MudTooltip Text="Log out">
+                <MudIconButton Icon="@Icons.Material.Filled.Logout"
+                               Size="Size.Small"
+                               OnClick="LogoutAsync" />
+            </MudTooltip>
+        </div>
     </MudDrawer>
 
     <MudMainContent>
@@ -90,8 +97,11 @@
 </MudLayout>
 
 @code {
-    private bool _drawerOpen = false;
-    private bool _isDark = false;
+    private bool   _drawerOpen   = false;
+    private bool   _isDark       = false;
+    private string _username     = "";
+    private string _displayName  = "";
+    private bool   _isOwner      = false;
 
     private readonly MudTheme _theme = new()
     {
@@ -166,6 +176,16 @@
         Nav.LocationChanged += OnLocationChanged;
         MonthSvc.OnChange   += OnMonthChanged;
         _locationChangingReg = Nav.RegisterLocationChangingHandler(OnLocationChanging);
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        _username    = auth.User.Identity?.Name ?? "";
+        _displayName = auth.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? _username;
+        _isOwner     = auth.User.IsInRole("Owner");
+    }
+
+    private async Task LogoutAsync()
+    {
+        await Auth.LogoutAsync();
+        Nav.NavigateTo("/login", replace: true);
     }
 
     private async ValueTask OnLocationChanging(LocationChangingContext _)

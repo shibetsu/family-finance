@@ -98,7 +98,7 @@ else
                     <button type="button"
                             @onclick="@(async () => await DeleteDraftAsync(idx))"
                             @onclick:stopPropagation="true"
-                            style="background:none;border:none;padding:2px;cursor:pointer;display:flex;align-items:center;color:inherit;opacity:0.55;flex-shrink:0;border-radius:4px">
+                            style="background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;color:inherit;opacity:0.55;flex-shrink:0;border-radius:4px">
                         <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
                     </button>
                 </div>
@@ -195,7 +195,7 @@ else
     private static string Fmt(decimal v) => v.ToString("C0", _ca);
 
     private static string TabStyle(bool active) =>
-        "display:flex;align-items:center;gap:4px;padding:4px 4px 4px 12px;" +
+        "display:flex;align-items:center;gap:2px;padding:4px 6px 4px 10px;" +
         "border-radius:8px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;" +
         "border:1px solid " + (active ? "var(--mud-palette-primary)" : "var(--mud-palette-divider)") + ";" +
         "background:" + (active ? "var(--mud-palette-action-default-hover)" : "transparent");
@@ -203,7 +203,7 @@ else
     private static string InputStyle(bool active, int nameLen) =>
         "border:none;outline:none;background:transparent;font-size:0.875rem;color:inherit;cursor:text;" +
         "font-weight:" + (active ? "600" : "400") + ";" +
-        "width:" + Math.Max(60, nameLen * 9) + "px";
+        "width:" + Math.Max(50, nameLen * 8) + "px";
 
     // ── Render helpers ───────────────────────────────────────────────────
 

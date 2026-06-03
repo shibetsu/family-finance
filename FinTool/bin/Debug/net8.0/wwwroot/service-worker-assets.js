@@ -13,11 +13,11 @@
       "url": "css\/bootstrap\/bootstrap.min.css.map"
     },
     {
-      "hash": "sha256-4mWsDy3aHl36ZbGt8zByK7Pvd4kRUoNgTYzRnwmPHwg=",
+      "hash": "sha256-\/\/NolATTOQNcaW4m\/ZlDTbyXl6WAsHdgOEoOj\/XlK6o=",
       "url": "favicon.png"
     },
     {
-      "hash": "sha256-sBfvqRVo\/F8M+2RxXIriIZscmShDbcC1bRSdaQGbYH4=",
+      "hash": "sha256-\/TgW6sPTF5eeA7B84kyvrb17IWL0GmTVDPYRDeb7xNM=",
       "url": "fintool.ico"
     },
     {
@@ -25,19 +25,27 @@
       "url": "fintool_preview.png"
     },
     {
-      "hash": "sha256-DbpQaq68ZSb5IoPosBErM1QWBfsbTxpJqhU0REi6wP4=",
+      "hash": "sha256-URTdh2Dnccdxc75Rvq8mu8IEooEE9oMCwbPMZbJ4vuY=",
+      "url": "icon-192-v2.png"
+    },
+    {
+      "hash": "sha256-URTdh2Dnccdxc75Rvq8mu8IEooEE9oMCwbPMZbJ4vuY=",
       "url": "icon-192.png"
     },
     {
-      "hash": "sha256-oEo6d+KqX5fjxTiZk\/w9NB3Mi0+ycS5yLwCKwr4IkbA=",
+      "hash": "sha256-DhD\/MWLlkKwp+X+KY3hY0EnMqOONRyQLO6aI9cfdXSU=",
+      "url": "icon-512-v2.png"
+    },
+    {
+      "hash": "sha256-DhD\/MWLlkKwp+X+KY3hY0EnMqOONRyQLO6aI9cfdXSU=",
       "url": "icon-512.png"
     },
     {
-      "hash": "sha256-8TWHb8dUQizZOaZBaZ8E9bwLukDT9JSVJrLaY\/84NeY=",
+      "hash": "sha256-dmXZ\/sJrBwtuKPG1l0wFzbY9WZhntyoe0BVmBACPOEs=",
       "url": "index.html"
     },
     {
-      "hash": "sha256-In1UsoCG2yoCJ5TtshpY6wnNsfw43zXbObU9aopyRTE=",
+      "hash": "sha256-F3YzPJLqL3IAg7VuQDA5Hy7QbFj2mEZWyOGw5\/uoAIA=",
       "url": "manifest.webmanifest"
     },
     {
@@ -55,6 +63,10 @@
     {
       "hash": "sha256-hnIBafI0ao+\/Xzk+6NzMQa1wftSoPFfNssKZWHvAghc=",
       "url": "_framework\/Microsoft.AspNetCore.Components.wasm"
+    },
+    {
+      "hash": "sha256-vjPxbu9Eihccqf\/fyXMzhB\/KS\/mpjIrI6BAbUdx04cQ=",
+      "url": "_framework\/Microsoft.AspNetCore.Components.Authorization.wasm"
     },
     {
       "hash": "sha256-jONkNPFQj\/o5XC\/EiPznikBdiBHEoxZCXX6H9Ya4VZE=",
@@ -101,6 +113,14 @@
       "url": "_framework\/Microsoft.Extensions.DependencyInjection.Abstractions.wasm"
     },
     {
+      "hash": "sha256-MFVFI2HwI1mQqiiXvaLy8bt3VV9aPzyHpmctfcIyNc8=",
+      "url": "_framework\/Microsoft.Extensions.Diagnostics.wasm"
+    },
+    {
+      "hash": "sha256-dpN\/LMJr0L1oxGxMzPw+PC8Nkzf+2WG8a3ccmvA35DE=",
+      "url": "_framework\/Microsoft.Extensions.Diagnostics.Abstractions.wasm"
+    },
+    {
       "hash": "sha256-IUopixuV8E09mP+TIgRp\/lXEbeacXbUTW7cu0v5B9Tc=",
       "url": "_framework\/Microsoft.Extensions.FileProviders.Abstractions.wasm"
     },
@@ -111,6 +131,10 @@
     {
       "hash": "sha256-AnWUKd0qJ8ZNKkRC0AFK2cjjszB7reXiP+bXdIi8bic=",
       "url": "_framework\/Microsoft.Extensions.FileSystemGlobbing.wasm"
+    },
+    {
+      "hash": "sha256-N+Tzkk\/w6KHM7RAL+KgJZSEePxW2\/p5DHYG8y6zUPx0=",
+      "url": "_framework\/Microsoft.Extensions.Http.wasm"
     },
     {
       "hash": "sha256-hcJFVGS1x8m5ZeBhvyIEBqYSQKIzBLnbw77jq3TNVmA=",
@@ -131,6 +155,10 @@
     {
       "hash": "sha256-5\/m+yVFGRuY+N4jQnD+QETKH0AfhAsnVze5dJ5ogIVM=",
       "url": "_framework\/Microsoft.Extensions.Options.wasm"
+    },
+    {
+      "hash": "sha256-C8ZA1VhhrMRPf8Qqv+OrW9za3ggJkCM9i1d8R\/F1ETc=",
+      "url": "_framework\/Microsoft.Extensions.Options.ConfigurationExtensions.wasm"
     },
     {
       "hash": "sha256-pVrYOTfjb2ITls3LKIByW1t8jwOAWFhmkIVDewtJ1GE=",
@@ -861,15 +889,15 @@
       "url": "_framework\/icudt_no_CJK.dat"
     },
     {
-      "hash": "sha256-K2whHfAlrVBWDJF5GzrNAz6NnppNrvxSqsjKr6EWkwk=",
+      "hash": "sha256-yfICFRSPNGyW3IFTuNuD8p3MZi1ecOXzW3pDd3exwXY=",
       "url": "_framework\/FinTool.wasm"
     },
     {
-      "hash": "sha256-cC4wh2ZjhLt5zilF31LAFjMM1JNW7mdprThc0RhTEp0=",
+      "hash": "sha256-u48QOqMl4nzbKdOlvKvURg0uV0W+ox5YuatAaA7iaag=",
       "url": "_framework\/FinTool.pdb"
     },
     {
-      "hash": "sha256-vbslu6ZlqeWP+dYbWQj9hsDx9kl1fDo2KZKEzYiiQos=",
+      "hash": "sha256-uUU8mQHG3lFMXRf37onLbd9wFojUr4UkhJzYol0FzBY=",
       "url": "_framework\/blazor.boot.json"
     },
     {
@@ -881,5 +909,5 @@
       "url": "_content\/MudBlazor\/MudBlazor.min.js"
     }
   ],
-  "version": "rT9j+U0v"
+  "version": "BSb0Qdlf"
 };

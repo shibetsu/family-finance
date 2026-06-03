@@ -1,0 +1,13 @@
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (auth.User.Identity?.IsAuthenticated == true)
+            Nav.NavigateTo("/", replace: true);   // authenticated but wrong role
+        else
+            Nav.NavigateTo("/login", replace: true);
+    }
+}

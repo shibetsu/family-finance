@@ -15,4 +15,5 @@ public static class NavIcons
     public static readonly string Goals        = Box('G');
     public static readonly string Accounts     = Box('A');
     public static readonly string Settings     = Box('S');
+    public static readonly string Users        = Box('U');
 }

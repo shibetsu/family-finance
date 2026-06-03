@@ -1,4 +1,5 @@
 @page "/accounts"
+@attribute [Authorize(Roles = "Owner")]
 @inject AccountService AccountSvc
 @using FinTool.Models
 @using FinTool.Services

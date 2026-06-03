@@ -15,7 +15,14 @@
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Admin\\\\Documents\\\\fintool\" -Directory)",
       "Bash(Select-Object Name)",
-      "Bash(dotnet build *)"
+      "Bash(dotnet build *)",
+      "Bash(dir C:UsersAdminDocumentsfintool *)",
+      "Bash(Get-ChildItem -Path C:\\\\Users\\\\Admin\\\\Documents\\\\fintool -Force)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Admin\\\\Documents\\\\fintool\" -Recurse -Name)",
+      "Bash(git commit *)",
+      "Bash(Select-Object FullName)",
+      "Bash(Head -50)",
+      "PowerShell(Head *)"
     ]
   }
 }

@@ -1,0 +1,79 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@layout LoginLayout
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Sign in – FinTool</PageTitle>
+
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f5f5">
+    <MudPaper Elevation="2" Style="width:100%;max-width:380px;padding:40px 32px;border-radius:16px">
+        <div style="text-align:center;margin-bottom:32px">
+            <img src="fintool_preview.png" alt="logo"
+                 style="height:52px;width:52px;display:block;margin:0 auto 14px" />
+            <MudText Typo="Typo.h5" Style="font-weight:700;letter-spacing:-0.3px">Family Finance</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Sign in to continue</MudText>
+        </div>
+
+        <MudTextField @bind-Value="_username"
+                      Label="Username"
+                      Variant="Variant.Outlined"
+                      Class="mb-3"
+                      Immediate="true"
+                      Disabled="@_loading"
+                      @onkeydown="OnKeyDown" />
+
+        <MudTextField @bind-Value="_password"
+                      Label="Password"
+                      Variant="Variant.Outlined"
+                      Class="mb-5"
+                      InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                      Adornment="Adornment.End"
+                      AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                      OnAdornmentClick="() => _showPassword = !_showPassword"
+                      Immediate="true"
+                      Disabled="@_loading"
+                      @onkeydown="OnKeyDown" />
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   FullWidth="true"
+                   Size="Size.Large"
+                   Disabled="@_loading"
+                   OnClick="LoginAsync">
+            @if (_loading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Signing in…</span>
+            }
+            else
+            {
+                <span>Sign in</span>
+            }
+        </MudButton>
+    </MudPaper>
+</div>
+
+@code {
+    private string _username     = "";
+    private string _password     = "";
+    private bool   _loading      = false;
+    private bool   _showPassword = false;
+
+    private async Task LoginAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_username) || string.IsNullOrWhiteSpace(_password)) return;
+        _loading = true;
+        StateHasChanged();
+        var ok = await Auth.LoginAsync(_username, _password);
+        _loading = false;
+        if (ok)
+            Nav.NavigateTo("/", replace: true);
+        StateHasChanged();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await LoginAsync();
+    }
+}

@@ -29,6 +29,10 @@ build_property._RazorSourceGeneratorDebug =
 build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Admin/Documents/fintool/FinTool/Components/AddUserDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBZGRVc2VyRGlhbG9nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Admin/Documents/fintool/FinTool/Components/BudgetTab.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xCdWRnZXRUYWIucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -37,16 +41,44 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDYXRlZ29yeURpYWxvZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Admin/Documents/fintool/FinTool/Components/ChatBot.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDaGF0Qm90LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Components/ColorPicker.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDb2xvclBpY2tlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Admin/Documents/fintool/FinTool/Components/DashboardTab.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xEYXNoYm9hcmRUYWIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Components/EditUserDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xFZGl0VXNlckRpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Components/GoalDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xHb2FsRGlhbG9nLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Admin/Documents/fintool/FinTool/Components/ImportDialog.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xJbXBvcnREaWFsb2cucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Admin/Documents/fintool/FinTool/Components/InlineColorPicker.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xJbmxpbmVDb2xvclBpY2tlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Admin/Documents/fintool/FinTool/Components/LoadingOverlay.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMb2FkaW5nT3ZlcmxheS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Components/NotAuthorizedRedirect.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xOb3RBdXRob3JpemVkUmVkaXJlY3QucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Components/RedirectToLogin.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSZWRpcmVjdFRvTG9naW4ucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Admin/Documents/fintool/FinTool/Components/RevenueCategoryDialog.razor]
@@ -61,20 +93,44 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xUcmFuc2FjdGlvbnNUYWIucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Admin/Documents/fintool/FinTool/Pages/Budget.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQnVkZ2V0LnJhem9y
+[C:/Users/Admin/Documents/fintool/FinTool/Layout/LoginLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = TGF5b3V0XExvZ2luTGF5b3V0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Pages/Accounts.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb3VudHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Pages/BudgetPlanner.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQnVkZ2V0UGxhbm5lci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Admin/Documents/fintool/FinTool/Pages/Dashboard.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRGFzaGJvYXJkLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Admin/Documents/fintool/FinTool/Pages/Revenue.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmV2ZW51ZS5yYXpvcg==
+[C:/Users/Admin/Documents/fintool/FinTool/Pages/Goals.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR29hbHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Pages/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTG9naW4ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Pages/Recurring.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVjdXJyaW5nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Pages/Settings.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2V0dGluZ3MucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Admin/Documents/fintool/FinTool/Pages/Transactions.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVHJhbnNhY3Rpb25zLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Admin/Documents/fintool/FinTool/Pages/Users.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVXNlcnMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Admin/Documents/fintool/FinTool/_Imports.razor]

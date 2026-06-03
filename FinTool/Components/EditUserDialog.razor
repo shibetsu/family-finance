@@ -1,0 +1,90 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Leave a field blank to keep its current value.
+        </MudText>
+        <MudTextField @bind-Value="_username"
+                      Label="Username"
+                      Variant="Variant.Outlined"
+                      Class="mb-3"
+                      Immediate="true" />
+        <MudTextField @bind-Value="_displayName"
+                      Label="Display Name"
+                      Variant="Variant.Outlined"
+                      Class="mb-3"
+                      Immediate="true" />
+        <MudTextField @bind-Value="_email"
+                      Label="Email"
+                      Variant="Variant.Outlined"
+                      Class="mb-3"
+                      InputType="InputType.Email"
+                      Immediate="true" />
+        <MudSelect @bind-Value="_role"
+                   Label="Role"
+                   Variant="Variant.Outlined"
+                   Class="mb-3">
+            <MudSelectItem Value="@("User")">User</MudSelectItem>
+            <MudSelectItem Value="@("Owner")">Owner</MudSelectItem>
+        </MudSelect>
+        <MudTextField @bind-Value="_password"
+                      Label="New Password"
+                      Variant="Variant.Outlined"
+                      InputType="@(_showPwd ? InputType.Text : InputType.Password)"
+                      Adornment="Adornment.End"
+                      AdornmentIcon="@(_showPwd ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                      OnAdornmentClick="() => _showPwd = !_showPwd"
+                      Immediate="true" />
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_error</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="SubmitAsync" Disabled="@_saving">
+            @(_saving ? "Saving…" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Inject] AuthService Auth { get; set; } = default!;
+
+    [Parameter] public AuthService.UserDto User { get; set; } = default!;
+
+    private string _username    = "";
+    private string _displayName = "";
+    private string _email       = "";
+    private string _role        = "User";
+    private string _password    = "";
+    private string _error    = "";
+    private bool   _saving   = false;
+    private bool   _showPwd  = false;
+
+    protected override void OnInitialized()
+    {
+        _username    = User.Username;
+        _displayName = User.DisplayName;
+        _email       = User.Email;
+        _role        = User.Role;
+    }
+
+    private async Task SubmitAsync()
+    {
+        _error  = "";
+        _saving = true;
+        var newUsername    = string.IsNullOrWhiteSpace(_username) ? null : _username.Trim();
+        var newDisplayName = _displayName.Trim();
+        var newEmail       = _email.Trim();
+        var newPassword    = string.IsNullOrWhiteSpace(_password) ? null : _password;
+        var (ok, err) = await Auth.UpdateUserAsync(User.Id, newUsername, newEmail, newDisplayName, _role, newPassword);
+        _saving = false;
+        if (ok)
+            MudDialog.Close(DialogResult.Ok(true));
+        else
+            _error = err ?? "An error occurred.";
+    }
+}

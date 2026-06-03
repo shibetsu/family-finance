@@ -1,0 +1,139 @@
+@page "/users"
+@attribute [Authorize(Roles = "Owner")]
+@inject AuthService Auth
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+@inject IDialogService DialogSvc
+
+<PageTitle>Users – FinTool</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-5">
+    <MudText Typo="Typo.h5">Users</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="OpenAddDialogAsync">
+        Add User
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@_users" Hover="true" Elevation="1" Dense="true">
+        <HeaderContent>
+            <MudTh>User</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Role</MudTh>
+            <MudTh Style="text-align:right">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate Context="user">
+            <MudTd>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudAvatar Size="Size.Small"
+                               Style="background:var(--mud-palette-primary);color:var(--mud-palette-primary-text);font-size:0.8rem;width:28px;height:28px">
+                        @((string.IsNullOrEmpty(user.DisplayName) ? user.Username : user.DisplayName)[0].ToString().ToUpper())
+                    </MudAvatar>
+                    <div>
+                        <MudText Style="line-height:1.2">
+                            @(string.IsNullOrEmpty(user.DisplayName) ? user.Username : user.DisplayName)
+                        </MudText>
+                        @if (!string.IsNullOrEmpty(user.DisplayName))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@@@user.Username</MudText>
+                        }
+                    </div>
+                    @if (user.Username == _currentUsername)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">You</MudChip>
+                    }
+                </MudStack>
+            </MudTd>
+            <MudTd>
+                <MudText Typo="Typo.body2" Color="@(string.IsNullOrEmpty(user.Email) ? Color.Secondary : Color.Default)">
+                    @(string.IsNullOrEmpty(user.Email) ? "—" : user.Email)
+                </MudText>
+            </MudTd>
+            <MudTd>
+                <MudChip T="string"
+                         Size="Size.Small"
+                         Variant="Variant.Outlined"
+                         Color="@(user.Role == "Owner" ? Color.Primary : Color.Default)">
+                    @user.Role
+                </MudChip>
+            </MudTd>
+            <MudTd Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Size="Size.Small"
+                               OnClick="@(() => OpenEditDialogAsync(user))" />
+                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                               Size="Size.Small"
+                               Color="Color.Error"
+                               Disabled="@(user.Username == _currentUsername)"
+                               OnClick="@(() => DeleteUserAsync(user))" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<AuthService.UserDto> _users          = [];
+    private bool                      _loading         = true;
+    private string                    _currentUsername = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Task.Delay(1);
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        _currentUsername = auth.User.Identity?.Name ?? "";
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _users   = await Auth.GetUsersAsync();
+        _loading = false;
+    }
+
+    private async Task OpenAddDialogAsync()
+    {
+        var dlg = await DialogSvc.ShowAsync<AddUserDialog>("Add User");
+        if ((await dlg.Result) is { Canceled: false })
+            await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task OpenEditDialogAsync(AuthService.UserDto user)
+    {
+        var parameters = new DialogParameters<EditUserDialog> { { x => x.User, user } };
+        var dlg = await DialogSvc.ShowAsync<EditUserDialog>($"Edit {user.Username}", parameters);
+        if ((await dlg.Result) is { Canceled: false })
+        {
+            Snackbar.Add("User updated.", Severity.Success);
+            await LoadAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async Task DeleteUserAsync(AuthService.UserDto user)
+    {
+        var ok = await Auth.DeleteUserAsync(user.Id);
+        if (ok)
+        {
+            Snackbar.Add($"User \"{user.Username}\" deleted.", Severity.Success);
+            _users.Remove(user);
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add("Failed to delete user.", Severity.Error);
+        }
+    }
+}
