@@ -83,8 +83,9 @@ family-finance/
 │   │   ├── CategoryDialog.razor / RevenueCategoryDialog.razor / GoalDialog.razor
 │   │   ├── AddUserDialog.razor / EditUserDialog.razor
 │   │   ├── BudgetTab.razor / RevenueTab.razor
-│   │   ├── TransactionsTab.razor / ImportDialog.razor
-│   │   ├── DashboardTab.razor
+│   │   ├── TransactionsTab.razor + TransactionsTab.razor.cs   # code-behind pattern
+│   │   ├── DashboardTab.razor + DashboardTab.razor.cs         # code-behind pattern
+│   │   ├── ImportDialog.razor
 │   │   └── ChatBot.razor
 │   ├── Layout/
 │   │   ├── MainLayout.razor          # App shell, global month picker, drawer, theme, logout button
@@ -98,7 +99,7 @@ family-finance/
 │   ├── Pages/
 │   │   ├── Login.razor               # /login — public, uses LoginLayout
 │   │   ├── Dashboard.razor / Transactions.razor / Recurring.razor
-│   │   ├── BudgetPlanner.razor       # /planner (formerly /budget-planner)
+│   │   ├── BudgetPlanner.razor + BudgetPlanner.razor.cs       # code-behind pattern
 │   │   ├── Goals.razor               # /goals
 │   │   ├── Accounts.razor            # /accounts
 │   │   ├── Settings.razor            # /settings — embeds BudgetTab + RevenueTab side by side
@@ -118,7 +119,19 @@ family-finance/
 │   └── NavIcons.cs                   # SVG letter-in-box icons for navigation
 │
 └── FinTool.Server/                   # ASP.NET Core minimal API (port 5111)
-    └── Program.cs                    # EF Core DbContext, all endpoints, JWT auth, RunClaudeAsync helper
+    ├── Program.cs                    # Startup, config, schema init, endpoint registration
+    ├── GlobalUsings.cs               # Project-wide global usings
+    ├── Data/
+    │   └── AppDbContext.cs           # EF Core DbContext
+    ├── Models/
+    │   └── Entities.cs               # All entity classes and request/response records
+    └── Endpoints/
+        ├── AuthEndpoints.cs          # Auth routes + JWT/password helpers
+        ├── TransactionEndpoints.cs   # Transaction CRUD
+        ├── BudgetEndpoints.cs        # Budget/revenue categories and drafts
+        ├── AccountEndpoints.cs       # Accounts and goals
+        ├── MiscEndpoints.cs          # Merchant cache, closed months, recurring
+        └── AiEndpoints.cs            # /api/classify, /api/chat, RunClaudeAsync
 ```
 
 ### Data flow
