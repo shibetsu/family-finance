@@ -1,0 +1,10 @@
+global using System.Diagnostics;
+global using System.Text;
+global using System.Text.Json;
+global using System.Text.Json.Serialization;
+global using System.Security.Claims;
+global using System.Security.Cryptography;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.AspNetCore.Authentication.JwtBearer;
+global using Microsoft.IdentityModel.Tokens;
+global using System.IdentityModel.Tokens.Jwt;

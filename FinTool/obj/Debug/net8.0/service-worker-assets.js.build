@@ -889,15 +889,15 @@
       "url": "_framework\/icudt_no_CJK.dat"
     },
     {
-      "hash": "sha256-yfICFRSPNGyW3IFTuNuD8p3MZi1ecOXzW3pDd3exwXY=",
+      "hash": "sha256-RELXZowncHF0PEZqrrSc47aRhj\/5f8BcTpdhxGJH+Yw=",
       "url": "_framework\/FinTool.wasm"
     },
     {
-      "hash": "sha256-u48QOqMl4nzbKdOlvKvURg0uV0W+ox5YuatAaA7iaag=",
+      "hash": "sha256-FONbjyKLkMf2QNkS5Pfr3kKXpnxfajs3GAf5l\/1Uyho=",
       "url": "_framework\/FinTool.pdb"
     },
     {
-      "hash": "sha256-uUU8mQHG3lFMXRf37onLbd9wFojUr4UkhJzYol0FzBY=",
+      "hash": "sha256-K0d0GUo64M9XYM+vjr0K1GDBMsnf\/nr5pHpXrtM+a+4=",
       "url": "_framework\/blazor.boot.json"
     },
     {
@@ -909,5 +909,5 @@
       "url": "_content\/MudBlazor\/MudBlazor.min.js"
     }
   ],
-  "version": "BSb0Qdlf"
+  "version": "GJbQpFfF"
 };

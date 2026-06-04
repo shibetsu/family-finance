@@ -22,9 +22,21 @@ Or use `start.cmd` to launch both at once. No migration commands are needed — 
 
 Two-project solution with no shared library — models are intentionally duplicated between client (`FinTool/Models/`) and server (inline entity classes in `FinTool.Server/Program.cs`).
 
-**`FinTool/`** — Blazor WebAssembly app. All data access goes through HTTP services (`*Service.cs`) that call the server at `http://localhost:5111`. Services maintain an in-memory cache (`_cache` field, nullable, nulled out on mutation). Components are either full pages (`Pages/`) or tab/dialog components (`Components/`) embedded in pages.
+**`FinTool/`** — Blazor WebAssembly app. All data access goes through HTTP services (`*Service.cs`) that call the server at `http://localhost:5111`. Services maintain an in-memory cache (`_cache` field, nullable, nulled out on mutation). Components are either full pages (`Pages/`) or tab/dialog components (`Components/`) embedded in pages. Large components use a code-behind pattern: markup in `.razor`, logic in `.razor.cs` (same partial class). `BudgetPlanner.razor` keeps a small `@code` block containing only `DrawTable` (a `RenderFragment` with embedded Razor HTML) while the rest lives in `BudgetPlanner.razor.cs`.
 
-**`FinTool.Server/Program.cs`** — single-file minimal API. Contains EF Core `AppDbContext`, all entity classes, all endpoint handlers, and a `RunClaudeAsync` helper that shells out to `claude -p` for AI features. New tables are added via explicit `CREATE TABLE IF NOT EXISTS` at startup (not EF migrations). Columns added after initial schema use `ALTER TABLE … ADD COLUMN` wrapped in `try/catch`.
+**`FinTool.Server/`** — minimal API server, split across several files:
+- `Program.cs` — startup/config, schema init, endpoint registration calls only
+- `Data/AppDbContext.cs` — EF Core DbContext
+- `Models/Entities.cs` — all entity classes and request/response records
+- `GlobalUsings.cs` — project-wide global usings
+- `Endpoints/AuthEndpoints.cs` — auth routes + helpers (GenerateToken, HashPassword)
+- `Endpoints/TransactionEndpoints.cs` — transaction CRUD routes
+- `Endpoints/BudgetEndpoints.cs` — budget categories, revenue categories, budget drafts
+- `Endpoints/AccountEndpoints.cs` — accounts + goals routes
+- `Endpoints/MiscEndpoints.cs` — merchant cache, closed months, recurring
+- `Endpoints/AiEndpoints.cs` — classify + chat + RunClaudeAsync
+
+New tables are added via `CREATE TABLE IF NOT EXISTS` in `Program.cs` startup. Columns added later use `ALTER TABLE … ADD COLUMN` wrapped in `try/catch`.
 
 ## Key Conventions
 
