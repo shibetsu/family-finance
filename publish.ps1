@@ -32,7 +32,9 @@ function New-CrossPlatformZip {
     try {
         Get-ChildItem $absSource -Recurse -File | ForEach-Object {
             $entryName = $_.FullName.Substring($absSource.Length).TrimStart('\', '/').Replace('\', '/')
-            [void]$archive.CreateEntryFromFile($_.FullName, $entryName, [System.IO.Compression.CompressionLevel]::Optimal)
+            # CreateEntryFromFile is an extension method; PowerShell 5.1 requires the static call form.
+            [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $archive, $_.FullName, $entryName, [System.IO.Compression.CompressionLevel]::Optimal)
         }
     } finally {
         $archive.Dispose()
