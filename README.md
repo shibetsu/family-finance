@@ -114,6 +114,7 @@ family-finance/
 │   │   ├── GoalService.cs / AccountService.cs / RecurringService.cs
 │   │   ├── BudgetPlannerService.cs / ClosedMonthService.cs / MerchantCacheService.cs
 │   │   ├── ClaudeService.cs / ChatService.cs
+│   │   ├── AppInfoService.cs         # Fetches and caches app version from /api/ping
 │   │   ├── DesjardinsParser.cs       # AccèsD paste format auto-detection and parsing
 │   │   └── LocalStorageService.cs    # JS interop — dark mode preference only
 │   ├── ColorPalette.cs               # 10-color soft palette + Random() helper
@@ -203,7 +204,7 @@ The version is tracked automatically in `version.txt` and the patch number is in
 ./publish.sh 2.0.0
 ```
 
-Each run produces a `release/` folder containing:
+Each run produces a `release/` folder containing only the final archives (staging folders are removed automatically):
 
 | File | Target |
 |---|---|
@@ -214,6 +215,8 @@ Each run produces a `release/` folder containing:
 | `family-finance-<ver>-osx-arm64.tar.gz` | macOS Apple Silicon (M1/M2/M3) |
 
 Every package is self-contained: no .NET runtime needed on the target machine. Each contains a single executable and a `wwwroot/` folder with the Blazor WebAssembly runtime.
+
+Previous releases are preserved automatically — before each build the existing `release/` archives are moved into `archives/<previous-version>/`.
 
 ### Windows
 
@@ -309,6 +312,45 @@ sudo systemctl start family-finance
 
 To run on a different port, add `Environment=ASPNETCORE_URLS=http://0.0.0.0:8080` to the `[Service]` block.
 
+### macOS
+
+1. Extract the archive for your chip:
+   ```bash
+   # Apple Silicon (M1/M2/M3)
+   tar xzf family-finance-*-osx-arm64.tar.gz -C family-finance && cd family-finance
+
+   # Intel
+   tar xzf family-finance-*-osx-x64.tar.gz -C family-finance && cd family-finance
+   ```
+2. Run the server:
+   ```bash
+   ./FinTool.Server
+   ```
+3. Open [http://localhost:5111](http://localhost:5111) in your browser.
+
+The database is created automatically at `~/.local/share/FamilyFinance/family-finance.db` on first run.
+
+To run on a different port:
+```bash
+ASPNETCORE_URLS=http://0.0.0.0:8080 ./FinTool.Server
+```
+
+#### Setting up Claude AI on macOS (optional)
+
+Install and authenticate the Claude CLI the same way as Linux:
+```bash
+npm install -g @anthropic-ai/claude-code
+claude          # authenticate once interactively
+echo "Say hello" | claude -p   # verify non-interactive mode works
+```
+
+If `claude` is installed in a non-standard npm prefix, add it to your PATH in `~/.zshrc` (or `~/.bash_profile`):
+```bash
+echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+Then restart the server so it inherits the updated PATH.
+
 ---
 
 ## How to Use
@@ -352,7 +394,12 @@ Open **Goals**, add a goal with a target amount and optional starting balance. T
 
 All application data is persisted in a **SQLite database** managed by `FinTool.Server`.
 
-**Database location:** `%LocalAppData%\FamilyFinance\family-finance.db`
+**Database location:**
+
+| Platform | Path |
+|---|---|
+| Windows | `%LocalAppData%\FamilyFinance\family-finance.db` |
+| Linux / macOS | `~/.local/share/FamilyFinance/family-finance.db` |
 
 | Table | Contents |
 |---|---|
@@ -433,7 +480,7 @@ The schema is created automatically on first startup — no migrations to run. C
 | `POST` | `/api/merchant-cache/set` | Store a description → category mapping |
 | `GET` | `/api/closed-months` | All locked month keys |
 | `POST` | `/api/closed-months` | Lock a month |
-| `GET` | `/api/ping` | Health check (public) |
+| `GET` | `/api/ping` | Health check — returns `{ status, version }` (public) |
 
 ### AI Classification & Chat
 
