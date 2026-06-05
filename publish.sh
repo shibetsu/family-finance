@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION_FILE="./version.txt"
-OUT_DIR="./release"
-ARCHIVES_DIR="./archives"
+# Anchor all paths to the script's directory so the script works regardless of CWD.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION_FILE="$SCRIPT_DIR/version.txt"
+OUT_DIR="$SCRIPT_DIR/release"
+ARCHIVES_DIR="$SCRIPT_DIR/archives"
 
 # Read previous version before overwriting (used for archiving).
 prev_version=$(cat "$VERSION_FILE" 2>/dev/null || echo "")
@@ -44,7 +46,7 @@ publish_rid() {
 
     echo ""
     echo "Publishing $rid..."
-    dotnet publish FinTool.Server \
+    dotnet publish "$SCRIPT_DIR/FinTool.Server" \
         -c Release \
         -r "$rid" \
         --self-contained true \
@@ -65,6 +67,8 @@ publish_rid() {
         (cd "$dest" && zip -r "$base.zip" .)
         echo "Done: $base.zip"
     fi
+
+    rm -rf "$dest"
 }
 
 publish_rid "win-x64"    "false"

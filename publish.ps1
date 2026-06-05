@@ -161,6 +161,8 @@ foreach ($t in $rids) {
         New-CrossPlatformZip -SourceDir $dest -DestZip $zip
         Write-Host "Done: $zip"
     }
+
+    Remove-Item $dest -Recurse -Force
 }
 
 Write-Host "`nAll packages built in $OutDir"
