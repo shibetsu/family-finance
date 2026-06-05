@@ -22,9 +22,9 @@ static class AiEndpoints
                 [{"index":1,"category":"CategoryName"}]
                 """;
 
-            var raw = await RunClaudeAsync(prompt, ct);
+            var (raw, claudeErr) = await RunClaudeAsync(prompt, ct);
             if (raw is null)
-                return Results.Problem("Claude process failed or timed out.");
+                return Results.Problem(claudeErr ?? "Claude process failed or timed out.");
 
             var start = raw.IndexOf('[');
             var end   = raw.LastIndexOf(']');
@@ -122,8 +122,8 @@ static class AiEndpoints
             sb.AppendLine($"User: {req.Message}");
             sb.AppendLine("Assistant:");
 
-            var raw = await RunClaudeAsync(sb.ToString(), ct);
-            if (raw is null) return Results.Problem("Claude is unavailable.");
+            var (raw, claudeErr) = await RunClaudeAsync(sb.ToString(), ct);
+            if (raw is null) return Results.Problem(claudeErr ?? "Claude is unavailable.");
 
             return Results.Ok(new { response = raw.Trim() });
         });
@@ -226,14 +226,16 @@ static class AiEndpoints
             sb.AppendLine($"User: {req.Message}");
             sb.AppendLine("Assistant:");
 
-            var raw = await RunClaudeAsync(sb.ToString(), ct);
-            if (raw is null) return Results.Problem("Claude is unavailable.");
+            var (raw, claudeErr) = await RunClaudeAsync(sb.ToString(), ct);
+            if (raw is null) return Results.Problem(claudeErr ?? "Claude is unavailable.");
 
             return Results.Ok(new { response = raw.Trim() });
         });
     }
 
-    internal static async Task<string?> RunClaudeAsync(string prompt, CancellationToken ct)
+    // Returns (output, stderr). output is null when Claude produced no usable response.
+    // stderr contains the failure reason (missing CLI, auth error, timeout, etc.).
+    internal static async Task<(string? Output, string? Stderr)> RunClaudeAsync(string prompt, CancellationToken ct)
     {
         // Route through the system shell so PATH is resolved from the user's environment.
         // On Windows: cmd /c claude -p
@@ -255,13 +257,24 @@ static class AiEndpoints
         try
         {
             using var proc = Process.Start(psi);
-            if (proc is null) return null;
+            if (proc is null) return (null, "Failed to start the claude process.");
             await proc.StandardInput.WriteAsync(prompt);
             proc.StandardInput.Close();
-            var output = await proc.StandardOutput.ReadToEndAsync(cts.Token);
+            var outTask = proc.StandardOutput.ReadToEndAsync(cts.Token);
+            var errTask = proc.StandardError.ReadToEndAsync(cts.Token);
             await proc.WaitForExitAsync(cts.Token);
-            return output;
+            var output = await outTask;
+            var stderr = await errTask;
+            return (string.IsNullOrWhiteSpace(output) ? null : output,
+                    string.IsNullOrWhiteSpace(stderr)  ? null : stderr);
         }
-        catch { return null; }
+        catch (OperationCanceledException)
+        {
+            return (null, "Claude timed out after 120 seconds.");
+        }
+        catch (Exception ex)
+        {
+            return (null, ex.Message);
+        }
     }
 }

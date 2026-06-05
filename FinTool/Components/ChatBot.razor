@@ -216,22 +216,29 @@
             .Select(m => new ChatService.ChatTurn(m.Role, m.Content))
             .ToList();
 
-        string? raw = Context == ChatBotContext.BudgetPlanner
+        var result = Context == ChatBotContext.BudgetPlanner
             ? await ChatSvc.SendBudgetAsync(text, history)
             : await ChatSvc.SendAsync(MonthSvc.Month.ToString("yyyy-MM"), text, history);
 
         _thinking = false;
 
-        if (raw is null)
+        if (result is null)
         {
             _messages.Add(new ChatTurn("assistant",
-                "Sorry, I couldn't reach the assistant. Make sure the server is running."));
+                "**Connection error** — couldn't reach the server. Make sure FinTool.Server is running."));
+        }
+        else if (result.IsError)
+        {
+            _messages.Add(new ChatTurn("assistant",
+                $"**The AI assistant is unavailable.** {result.Content}\n\n" +
+                "Verify that the Claude CLI is installed and authenticated on the server " +
+                "(`echo test | claude -p` should return output)."));
         }
         else
         {
+            var raw   = result.Content;
             var draft = Context == ChatBotContext.BudgetPlanner ? TryParseDraft(raw) : null;
 
-            // Strip the machine block from the visible response
             var visible = draft is not null ? StripDraftMarkers(raw) : raw;
             if (!string.IsNullOrWhiteSpace(visible))
                 _messages.Add(new ChatTurn("assistant", visible.Trim()));
