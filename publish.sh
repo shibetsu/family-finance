@@ -38,16 +38,16 @@ publish_rid() {
         -p:DebugSymbols=false \
         -o "$dest"
 
-    echo "Zipping $base.zip..."
-    (cd "$dest" && zip -r "$base.zip" .)
-    echo "Done: $base.zip"
-
     if [ "$linux" = "true" ]; then
         echo "Creating $base.tar.gz..."
         # chmod so the binary gets 755 in the archive; everything else stays at its current mode
         chmod +x "$dest/FinTool.Server"
         (cd "$dest" && tar czf "$base.tar.gz" .)
         echo "Done: $base.tar.gz"
+    else
+        echo "Zipping $base.zip..."
+        (cd "$dest" && zip -r "$base.zip" .)
+        echo "Done: $base.zip"
     fi
 }
 

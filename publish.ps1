@@ -132,16 +132,16 @@ foreach ($t in $rids) {
 
     $base = "$OutDir\family-finance-$Version-$rid"
 
-    $zip = "$base.zip"
-    Write-Host "Zipping $zip..."
-    New-CrossPlatformZip -SourceDir $dest -DestZip $zip
-    Write-Host "Done: $zip"
-
     if ($t.Linux) {
         $tarGz = "$base.tar.gz"
         Write-Host "Creating $tarGz..."
         New-LinuxTarGz -SourceDir $dest -DestTarGz $tarGz
         Write-Host "Done: $tarGz"
+    } else {
+        $zip = "$base.zip"
+        Write-Host "Zipping $zip..."
+        New-CrossPlatformZip -SourceDir $dest -DestZip $zip
+        Write-Host "Done: $zip"
     }
 }
 

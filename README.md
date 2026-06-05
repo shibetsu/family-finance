@@ -207,10 +207,8 @@ Each run produces a `release/` folder containing:
 | File | Target |
 |---|---|
 | `family-finance-<ver>-win-x64.zip` | Windows x64 |
-| `family-finance-<ver>-linux-x64.zip` | Linux x64 (zip) |
-| `family-finance-<ver>-linux-x64.tar.gz` | Linux x64 — **preferred**, preserves execute permissions |
-| `family-finance-<ver>-linux-arm64.zip` | Linux ARM64 / Raspberry Pi (zip) |
-| `family-finance-<ver>-linux-arm64.tar.gz` | Linux ARM64 / Raspberry Pi — **preferred** |
+| `family-finance-<ver>-linux-x64.tar.gz` | Linux x64 — preserves execute permissions |
+| `family-finance-<ver>-linux-arm64.tar.gz` | Linux ARM64 / Raspberry Pi |
 
 Every package is self-contained: no .NET runtime needed on the target machine. Each contains a single executable and a `wwwroot/` folder with the Blazor WebAssembly runtime.
 
