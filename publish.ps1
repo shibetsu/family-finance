@@ -3,8 +3,11 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$OutDir        = ".\release"
-$VersionFile   = ".\version.txt"
+# Use $PSScriptRoot so all paths are absolute regardless of the caller's working directory.
+# [System.IO.Path]::GetFullPath uses .NET's Environment.CurrentDirectory, which PowerShell's
+# Set-Location does not update — anchoring to $PSScriptRoot avoids that mismatch.
+$OutDir      = Join-Path $PSScriptRoot "release"
+$VersionFile = Join-Path $PSScriptRoot "version.txt"
 
 # Auto-increment patch if no version supplied; explicit version updates the file.
 if ($Version -eq "") {
@@ -115,7 +118,7 @@ foreach ($t in $rids) {
     $dest = "$OutDir\$rid"
     Write-Host "`nPublishing $rid..."
 
-    dotnet publish FinTool.Server `
+    dotnet publish (Join-Path $PSScriptRoot "FinTool.Server") `
         -c Release `
         -r $rid `
         --self-contained true `
@@ -128,13 +131,13 @@ foreach ($t in $rids) {
 
     $base = "$OutDir\family-finance-$Version-$rid"
 
-    $zip = [System.IO.Path]::GetFullPath("$base.zip")
+    $zip = "$base.zip"
     Write-Host "Zipping $zip..."
     New-CrossPlatformZip -SourceDir $dest -DestZip $zip
     Write-Host "Done: $zip"
 
     if ($t.Linux) {
-        $tarGz = [System.IO.Path]::GetFullPath("$base.tar.gz")
+        $tarGz = "$base.tar.gz"
         Write-Host "Creating $tarGz..."
         New-LinuxTarGz -SourceDir $dest -DestTarGz $tarGz
         Write-Host "Done: $tarGz"
