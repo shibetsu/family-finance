@@ -1,10 +1,19 @@
 param(
-    [string]$Version = "1.0.0"
+    [string]$Version = ""
 )
 
 $ErrorActionPreference = "Stop"
-$OutDir = ".\release"
+$OutDir        = ".\release"
+$VersionFile   = ".\version.txt"
 
+# Auto-increment patch if no version supplied; explicit version updates the file.
+if ($Version -eq "") {
+    $current = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { "1.0.0" }
+    $parts   = $current.Split('.')
+    $parts[2] = [int]$parts[2] + 1
+    $Version  = $parts -join '.'
+}
+Set-Content $VersionFile $Version -NoNewline
 Write-Host "Building release packages v$Version..."
 
 if (Test-Path $OutDir) { Remove-Item $OutDir -Recurse -Force }

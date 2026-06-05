@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${1:-1.0.0}"
+VERSION_FILE="./version.txt"
 OUT_DIR="./release"
+
+# Auto-increment patch if no version supplied; explicit version updates the file.
+if [ -z "${1:-}" ]; then
+    current=$(cat "$VERSION_FILE" 2>/dev/null || echo "1.0.0")
+    major=$(echo "$current" | cut -d. -f1)
+    minor=$(echo "$current" | cut -d. -f2)
+    patch=$(echo "$current" | cut -d. -f3)
+    VERSION="$major.$minor.$((patch + 1))"
+else
+    VERSION="$1"
+fi
+printf '%s' "$VERSION" > "$VERSION_FILE"
 
 echo "Building release packages v$VERSION..."
 
