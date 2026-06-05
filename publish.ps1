@@ -126,9 +126,11 @@ foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirec
 }
 
 $rids = @(
-    @{ Rid = "win-x64";    Linux = $false },
-    @{ Rid = "linux-x64";  Linux = $true  },
-    @{ Rid = "linux-arm64"; Linux = $true  }
+    @{ Rid = "win-x64";     Linux = $false },
+    @{ Rid = "linux-x64";   Linux = $true  },
+    @{ Rid = "linux-arm64"; Linux = $true  },
+    @{ Rid = "osx-x64";     Linux = $true  },
+    @{ Rid = "osx-arm64";   Linux = $true  }
 )
 
 foreach ($t in $rids) {

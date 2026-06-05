@@ -71,9 +71,11 @@ publish_rid() {
     rm -rf "$dest"
 }
 
-publish_rid "win-x64"    "false"
-publish_rid "linux-x64"  "true"
+publish_rid "win-x64"     "false"
+publish_rid "linux-x64"   "true"
 publish_rid "linux-arm64" "true"
+publish_rid "osx-x64"     "true"
+publish_rid "osx-arm64"   "true"
 
 echo ""
 echo "All packages built in $OUT_DIR"
