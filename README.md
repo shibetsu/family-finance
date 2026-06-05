@@ -13,6 +13,7 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 - Default seed account: **Admin / Admin123!** (change on first run)
 - Token is stored in browser `sessionStorage` and sent as a Bearer header on every API request
 - All app pages carry `[Authorize]` — the Blazor router gate prevents any component from rendering (and making API calls) until the auth state is confirmed; unauthenticated visitors are redirected to `/login` with no flash and no 401 errors
+- App version is shown bottom-left on the login screen and above the username row in the nav drawer; sourced from `version.txt` at startup
 
 ### Global Month Picker
 - The month selector lives in the **top app bar** and is shared across all pages — changing it on one page changes it everywhere

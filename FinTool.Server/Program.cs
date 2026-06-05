@@ -18,19 +18,25 @@ var jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret));
 // regardless of what working directory the process is launched from (systemd, scripts, etc.)
 var executableDir = Path.GetDirectoryName(Environment.ProcessPath) ?? Directory.GetCurrentDirectory();
 
-// Search upward from the executable for version.txt (found at repo root in dev, same dir in production).
-var appVersion = "dev";
+// Search upward for version.txt. In production executableDir == deploy dir (version.txt copied there
+// by publish scripts). In dev AppContext.BaseDirectory is bin/Debug/net8.0/ — 3 levels up is repo root.
+static string FindVersion(params string[] startDirs)
 {
-    var dir = executableDir;
-    for (var i = 0; i < 5; i++)
+    foreach (var start in startDirs)
     {
-        var f = Path.Combine(dir, "version.txt");
-        if (File.Exists(f)) { appVersion = File.ReadAllText(f).Trim(); break; }
-        var parent = Path.GetDirectoryName(dir);
-        if (parent is null || parent == dir) break;
-        dir = parent;
+        var dir = start;
+        for (var i = 0; i < 5; i++)
+        {
+            var f = Path.Combine(dir, "version.txt");
+            if (File.Exists(f)) return File.ReadAllText(f).Trim();
+            var parent = Path.GetDirectoryName(dir);
+            if (parent is null || parent == dir) break;
+            dir = parent;
+        }
     }
+    return "dev";
 }
+var appVersion = FindVersion(AppContext.BaseDirectory, executableDir);
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
