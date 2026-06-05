@@ -3,10 +3,14 @@ set -euo pipefail
 
 VERSION_FILE="./version.txt"
 OUT_DIR="./release"
+ARCHIVES_DIR="./archives"
+
+# Read previous version before overwriting (used for archiving).
+prev_version=$(cat "$VERSION_FILE" 2>/dev/null || echo "")
 
 # Auto-increment patch if no version supplied; explicit version updates the file.
 if [ -z "${1:-}" ]; then
-    current=$(cat "$VERSION_FILE" 2>/dev/null || echo "1.0.0")
+    current="${prev_version:-1.0.0}"
     major=$(echo "$current" | cut -d. -f1)
     minor=$(echo "$current" | cut -d. -f2)
     patch=$(echo "$current" | cut -d. -f3)
@@ -17,6 +21,17 @@ fi
 printf '%s' "$VERSION" > "$VERSION_FILE"
 
 echo "Building release packages v$VERSION..."
+
+# Move existing release packages into archives/<prev-version>/ before wiping the folder.
+if [ -n "$prev_version" ] && [ -d "$OUT_DIR" ]; then
+    pkgs=$(find "$OUT_DIR" -maxdepth 1 \( -name "*.zip" -o -name "*.tar.gz" \) 2>/dev/null)
+    if [ -n "$pkgs" ]; then
+        archive_dest="$ARCHIVES_DIR/$prev_version"
+        mkdir -p "$archive_dest"
+        echo "$pkgs" | xargs -I{} mv {} "$archive_dest/"
+        echo "Archived v$prev_version packages → archives/$prev_version"
+    fi
+fi
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"

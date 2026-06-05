@@ -7,17 +7,34 @@ $ErrorActionPreference = "Stop"
 # [System.IO.Path]::GetFullPath uses .NET's Environment.CurrentDirectory, which PowerShell's
 # Set-Location does not update — anchoring to $PSScriptRoot avoids that mismatch.
 $OutDir      = Join-Path $PSScriptRoot "release"
+$ArchivesDir = Join-Path $PSScriptRoot "archives"
 $VersionFile = Join-Path $PSScriptRoot "version.txt"
+
+# Read previous version before overwriting (used for archiving).
+$PrevVersion = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { "" }
 
 # Auto-increment patch if no version supplied; explicit version updates the file.
 if ($Version -eq "") {
-    $current = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { "1.0.0" }
+    $current = if ($PrevVersion -ne "") { $PrevVersion } else { "1.0.0" }
     $parts   = $current.Split('.')
     $parts[2] = [int]$parts[2] + 1
     $Version  = $parts -join '.'
 }
 Set-Content $VersionFile $Version -NoNewline
 Write-Host "Building release packages v$Version..."
+
+# Move existing release packages into archives/<prev-version>/ before wiping the folder.
+if ($PrevVersion -ne "" -and (Test-Path $OutDir)) {
+    $pkgs = Get-ChildItem $OutDir -File | Where-Object { $_.Extension -in '.zip', '.gz' }
+    if ($pkgs) {
+        $archiveDest = Join-Path $ArchivesDir $PrevVersion
+        New-Item -ItemType Directory -Path $archiveDest -Force | Out-Null
+        foreach ($f in $pkgs) {
+            Move-Item $f.FullName (Join-Path $archiveDest $f.Name) -Force
+        }
+        Write-Host "Archived v$PrevVersion packages → archives\$PrevVersion"
+    }
+}
 
 if (Test-Path $OutDir) { Remove-Item $OutDir -Recurse -Force }
 
