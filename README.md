@@ -12,7 +12,7 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 - JWT-based login protects all pages and API endpoints
 - Default seed account: **Admin / Admin123!** (change on first run)
 - Token is stored in browser `sessionStorage` and sent as a Bearer header on every API request
-- Unauthenticated users are redirected to `/login` automatically
+- All app pages carry `[Authorize]` — the Blazor router gate prevents any component from rendering (and making API calls) until the auth state is confirmed; unauthenticated visitors are redirected to `/login` with no flash and no 401 errors
 
 ### Global Month Picker
 - The month selector lives in the **top app bar** and is shared across all pages — changing it on one page changes it everywhere
