@@ -182,19 +182,37 @@ Then open [http://localhost:5111](http://localhost:5111) in your browser.
 
 ## Deployment
 
-Pre-built self-contained packages (no .NET installation required on the target machine) can be produced with the included scripts:
+Pre-built self-contained packages (no .NET installation required on the target machine) can be produced with the included scripts.
+
+The version is tracked automatically in `version.txt` and the patch number is incremented on every run. Pass an explicit version to override (e.g. for a minor or major bump):
 
 ```powershell
-# Windows PowerShell — produces release/ with win-x64 and linux-x64 zips
-.\publish.ps1 -Version 1.0.0
+# Windows PowerShell — auto-increments patch version
+.\publish.ps1
+
+# Override to a specific version
+.\publish.ps1 -Version 2.0.0
 ```
 
 ```bash
-# From the repo root on Linux/macOS
-./publish.sh 1.0.0
+# From the repo root on Linux/macOS — auto-increments patch version
+./publish.sh
+
+# Override to a specific version
+./publish.sh 2.0.0
 ```
 
-Each zip contains a single executable and a `wwwroot/` folder with the Blazor WebAssembly runtime.
+Each run produces a `release/` folder containing:
+
+| File | Target |
+|---|---|
+| `family-finance-<ver>-win-x64.zip` | Windows x64 |
+| `family-finance-<ver>-linux-x64.zip` | Linux x64 (zip) |
+| `family-finance-<ver>-linux-x64.tar.gz` | Linux x64 — **preferred**, preserves execute permissions |
+| `family-finance-<ver>-linux-arm64.zip` | Linux ARM64 / Raspberry Pi (zip) |
+| `family-finance-<ver>-linux-arm64.tar.gz` | Linux ARM64 / Raspberry Pi — **preferred** |
+
+Every package is self-contained: no .NET runtime needed on the target machine. Each contains a single executable and a `wwwroot/` folder with the Blazor WebAssembly runtime.
 
 ### Windows
 
