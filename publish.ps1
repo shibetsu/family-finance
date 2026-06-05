@@ -146,6 +146,7 @@ foreach ($t in $rids) {
         -o $dest
 
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed for $rid" }
+    Copy-Item $VersionFile (Join-Path $dest "version.txt") -Force
 
     $base = "$OutDir\family-finance-$Version-$rid"
 

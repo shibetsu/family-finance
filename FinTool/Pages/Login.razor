@@ -3,10 +3,11 @@
 @layout LoginLayout
 @inject AuthService Auth
 @inject NavigationManager Nav
+@inject AppInfoService AppInfo
 
 <PageTitle>Sign in – FinTool</PageTitle>
 
-<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f5f5">
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f5f5;position:relative">
     <MudPaper Elevation="2" Style="width:100%;max-width:380px;padding:40px 32px;border-radius:16px">
         <div style="text-align:center;margin-bottom:32px">
             <img src="fintool_preview.png" alt="logo"
@@ -52,6 +53,9 @@
             }
         </MudButton>
     </MudPaper>
+    <div style="position:absolute;bottom:16px;left:20px;font-size:0.7rem;opacity:0.4;user-select:none;">
+        v@_version
+    </div>
 </div>
 
 @code {
@@ -59,6 +63,10 @@
     private string _password     = "";
     private bool   _loading      = false;
     private bool   _showPassword = false;
+    private string _version      = "";
+
+    protected override async Task OnInitializedAsync() =>
+        _version = await AppInfo.GetVersionAsync();
 
     private async Task LoginAsync()
     {

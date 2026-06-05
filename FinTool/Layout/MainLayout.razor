@@ -5,6 +5,7 @@
 @inject MonthState MonthSvc
 @inject AuthService Auth
 @inject AuthenticationStateProvider AuthStateProvider
+@inject AppInfoService AppInfo
 @using System.Globalization
 
 <MudThemeProvider Theme="_theme" IsDarkMode="_isDark" />
@@ -66,7 +67,8 @@
             }
         </MudNavMenu>
         <MudDivider Style="margin-top:auto;flex-grow:0" />
-        <div style="display:flex;align-items:center;padding:12px 16px;gap:10px">
+        <MudText Typo="Typo.caption" Style="display:block;padding:6px 16px 0;opacity:0.4;font-size:0.7rem;user-select:none;">v@_version</MudText>
+        <div style="display:flex;align-items:center;padding:8px 16px 12px;gap:10px">
             <MudAvatar Style="width:32px;height:32px;font-size:0.8rem;background:var(--mud-palette-primary);color:var(--mud-palette-primary-text);flex-shrink:0">
                 @(_displayName.Length > 0 ? _displayName[0].ToString().ToUpper() : "?")
             </MudAvatar>
@@ -102,6 +104,7 @@
     private string _username     = "";
     private string _displayName  = "";
     private bool   _isOwner      = false;
+    private string _version      = "";
 
     private readonly MudTheme _theme = new()
     {
@@ -180,6 +183,7 @@
         _username    = auth.User.Identity?.Name ?? "";
         _displayName = auth.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? _username;
         _isOwner     = auth.User.IsInRole("Owner");
+        _version     = await AppInfo.GetVersionAsync();
     }
 
     private async Task LogoutAsync()

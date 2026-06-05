@@ -43,5 +43,6 @@ builder.Services.AddScoped<TransactionFilterState>();
 builder.Services.AddScoped<MonthState>();
 builder.Services.AddScoped<BudgetPlannerService>();
 builder.Services.AddScoped<GoalService>();
+builder.Services.AddScoped<AppInfoService>();
 
 await builder.Build().RunAsync();

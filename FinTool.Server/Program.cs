@@ -17,6 +17,21 @@ var jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret));
 // Anchor content root to the executable's directory so wwwroot is always found
 // regardless of what working directory the process is launched from (systemd, scripts, etc.)
 var executableDir = Path.GetDirectoryName(Environment.ProcessPath) ?? Directory.GetCurrentDirectory();
+
+// Search upward from the executable for version.txt (found at repo root in dev, same dir in production).
+var appVersion = "dev";
+{
+    var dir = executableDir;
+    for (var i = 0; i < 5; i++)
+    {
+        var f = Path.Combine(dir, "version.txt");
+        if (File.Exists(f)) { appVersion = File.ReadAllText(f).Trim(); break; }
+        var parent = Path.GetDirectoryName(dir);
+        if (parent is null || parent == dir) break;
+        dir = parent;
+    }
+}
+
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
@@ -118,7 +133,7 @@ using (var scope = app.Services.CreateScope())
 // ---------------------------------------------------------------------------
 // Endpoints
 // ---------------------------------------------------------------------------
-app.MapGet("/api/ping", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/api/ping", () => Results.Ok(new { status = "ok", version = appVersion }));
 app.MapAuthEndpoints(jwtKey);
 
 var api = app.MapGroup("").RequireAuthorization();

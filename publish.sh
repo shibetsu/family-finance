@@ -52,6 +52,7 @@ publish_rid() {
         -p:DebugType=none \
         -p:DebugSymbols=false \
         -o "$dest"
+    cp "$VERSION_FILE" "$dest/version.txt"
 
     if [ "$linux" = "true" ]; then
         echo "Creating $base.tar.gz..."
