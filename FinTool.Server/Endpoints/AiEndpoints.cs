@@ -235,10 +235,13 @@ static class AiEndpoints
 
     internal static async Task<string?> RunClaudeAsync(string prompt, CancellationToken ct)
     {
+        // Route through the system shell so PATH is resolved from the user's environment.
+        // On Windows: cmd /c claude -p
+        // On Linux/Mac: /bin/sh -c "claude -p"  (picks up ~/.bashrc / ~/.profile exports)
         var psi = new ProcessStartInfo
         {
-            FileName               = OperatingSystem.IsWindows() ? "cmd.exe" : "claude",
-            Arguments              = OperatingSystem.IsWindows() ? "/c claude -p" : "-p",
+            FileName               = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
+            Arguments              = OperatingSystem.IsWindows() ? "/c claude -p" : "-c \"claude -p\"",
             RedirectStandardInput  = true,
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
