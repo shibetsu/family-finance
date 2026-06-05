@@ -1,13 +1,18 @@
 @inject NavigationManager Nav
-@inject AuthenticationStateProvider AuthStateProvider
 
 @code {
-    protected override async Task OnInitializedAsync()
+    // Re-use the auth state already resolved by CascadingAuthenticationState / AuthorizeRouteView
+    // instead of calling GetAuthenticationStateAsync() again (which makes extra JS interop + HTTP calls).
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        if (auth.User.Identity?.IsAuthenticated == true)
-            Nav.NavigateTo("/", replace: true);   // authenticated but wrong role
-        else
-            Nav.NavigateTo("/login", replace: true);
+        if (!firstRender) return;
+
+        // Navigate after the render cycle so Blazor doesn't throw from inside a lifecycle method.
+        var state = AuthState is not null ? await AuthState : null;
+        var target = state?.User.Identity?.IsAuthenticated == true ? "/" : "/login";
+        Nav.NavigateTo(target, replace: true);
     }
 }

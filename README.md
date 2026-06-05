@@ -215,19 +215,47 @@ FinTool.Server.exe
 
 ### Linux
 
-1. Copy the zip to your server and unzip it:
+Use the **`.tar.gz`** package — it preserves the executable bit so no `chmod` is needed:
+
+1. Copy the archive to your machine and extract it:
    ```bash
-   unzip family-finance-*-linux-x64.zip -d family-finance
+   tar xzf family-finance-*-linux-arm64.tar.gz -C family-finance
    cd family-finance
    ```
-2. Make the binary executable and run it:
+   *(substitute `linux-x64` if you are not on ARM64)*
+2. Run the server:
    ```bash
-   chmod +x FinTool.Server
    ./FinTool.Server
    ```
 3. Open `http://<your-machine-ip>:5111` in any browser on your network.
 
 The database is created automatically at `~/.local/share/FamilyFinance/family-finance.db` on first run.
+
+#### Setting up Claude AI (optional)
+
+The AI classification and chat features require the [Claude Code CLI](https://claude.ai/code) to be installed and authenticated on the machine running the server.
+
+1. **Install Claude Code** following the instructions at <https://claude.ai/code>.
+   On Raspberry Pi / Linux ARM64 the typical install is via `npm`:
+   ```bash
+   npm install -g @anthropic-ai/claude-code
+   ```
+2. **Authenticate** by running Claude once interactively — this stores credentials in `~/.config/@anthropic-ai/claude-code/` so the server can use them without a browser:
+   ```bash
+   claude
+   ```
+   Follow the login prompt. Once complete, verify it works in non-interactive mode:
+   ```bash
+   echo "Say hello" | claude -p
+   ```
+3. **Ensure `claude` is on the PATH** seen by the server process. If you installed via `npm` into a user-local prefix (e.g. `~/.npm-global/bin`), add it to your shell profile:
+   ```bash
+   echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.profile
+   source ~/.profile
+   ```
+   Then restart the server so it inherits the updated PATH.
+
+If Claude is not installed the server still starts normally — all data features work, and the AI buttons will return an error message instead of a response.
 
 #### Run as a systemd service (keep alive after logout)
 
@@ -244,6 +272,8 @@ ExecStart=/opt/family-finance/FinTool.Server
 Restart=always
 User=your-username
 Environment=ASPNETCORE_ENVIRONMENT=Production
+# Uncomment and set if claude is installed in a non-standard location:
+# Environment=PATH=/home/your-username/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
 
 [Install]
 WantedBy=multi-user.target
