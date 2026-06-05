@@ -4,25 +4,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running the App
 
-Two processes must run simultaneously — the Blazor WASM frontend and the ASP.NET Core API/database server.
+The server now hosts the Blazor WASM frontend — only one process is needed.
 
 ```powershell
-# Terminal 1 — API server (SQLite + AI bridge), port 5111
-dotnet run --project FinTool.Server
-
-# Terminal 2 — Blazor app with hot reload, port 5254
-dotnet watch --project FinTool --launch-profile http
+# Dev with hot reload — serves both API and Blazor WASM at http://localhost:5111
+dotnet watch --project FinTool.Server --launch-profile http
 ```
 
-Or use `start.cmd` to launch both at once. No migration commands are needed — the database is created automatically at `%LocalAppData%\FamilyFinance\family-finance.db` on first run.
+No migration commands are needed — the database is created automatically on first run:
+- Windows: `%LocalAppData%\FamilyFinance\family-finance.db`
+- Linux: `~/.local/share/FamilyFinance/family-finance.db`
 
 `dotnet restore` is required on a fresh clone before the first run.
+
+## Building Release Packages
+
+```powershell
+# Windows PowerShell — builds win-x64 and linux-x64 zips in ./release/
+.\publish.ps1 -Version 1.2.0
+```
+
+```bash
+# Bash (from repo root)
+./publish.sh 1.2.0
+```
+
+Each zip contains a self-contained single-file executable plus the `wwwroot/` folder with the Blazor WASM runtime. On Linux: `chmod +x FinTool.Server && ./FinTool.Server`. Listens on `http://0.0.0.0:5111` by default; override with `ASPNETCORE_URLS` env var.
 
 ## Architecture
 
 Two-project solution with no shared library — models are intentionally duplicated between client (`FinTool/Models/`) and server (inline entity classes in `FinTool.Server/Program.cs`).
 
-**`FinTool/`** — Blazor WebAssembly app. All data access goes through HTTP services (`*Service.cs`) that call the server at `http://localhost:5111`. Services maintain an in-memory cache (`_cache` field, nullable, nulled out on mutation). Components are either full pages (`Pages/`) or tab/dialog components (`Components/`) embedded in pages. Large components use a code-behind pattern: markup in `.razor`, logic in `.razor.cs` (same partial class). `BudgetPlanner.razor` keeps a small `@code` block containing only `DrawTable` (a `RenderFragment` with embedded Razor HTML) while the rest lives in `BudgetPlanner.razor.cs`.
+**`FinTool/`** — Blazor WebAssembly app. Served by the server in both dev and production. All data access goes through HTTP services (`*Service.cs`) using `builder.HostEnvironment.BaseAddress` as the API root (same origin as where the app is served). Services maintain an in-memory cache (`_cache` field, nullable, nulled out on mutation). Components are either full pages (`Pages/`) or tab/dialog components (`Components/`) embedded in pages. Large components use a code-behind pattern: markup in `.razor`, logic in `.razor.cs` (same partial class). `BudgetPlanner.razor` keeps a small `@code` block containing only `DrawTable` (a `RenderFragment` with embedded Razor HTML) while the rest lives in `BudgetPlanner.razor.cs`.
 
 **`FinTool.Server/`** — minimal API server, split across several files:
 - `Program.cs` — startup/config, schema init, endpoint registration calls only

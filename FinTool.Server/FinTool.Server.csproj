@@ -8,11 +8,19 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.*">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Strip publish flags so the WASM project isn't treated as a native single-file binary -->
+    <ProjectReference Include="..\FinTool\FinTool.csproj">
+      <UndefineProperties>PublishSingleFile;SelfContained;RuntimeIdentifier;RuntimeIdentifiers</UndefineProperties>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>

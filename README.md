@@ -76,7 +76,7 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 
 ```
 family-finance/
-├── FinTool/                          # Blazor WebAssembly app (port 5254)
+├── FinTool/                          # Blazor WebAssembly app (served by FinTool.Server)
 │   ├── Components/
 │   │   ├── ColorPicker.razor         # Swatch row + native picker fallback (used in dialogs)
 │   │   ├── InlineColorPicker.razor   # Compact circle that opens floating swatch panel (used in tables)
@@ -162,32 +162,103 @@ AccèsD paste
 >
 > **AI classification is optional.** If the Claude CLI is not installed, the server still starts and all data features work — transactions just won't be auto-classified during import.
 
-### Running the app
+### Running from source (development)
 
-The easiest way is to use the included launcher, which opens both processes in separate terminal windows:
-
-```cmd
-start.cmd
-```
-
-Then open [http://localhost:5254](http://localhost:5254) in your browser.
-
-**Or start each project manually:**
+The server now hosts the Blazor frontend — only one process is needed:
 
 ```powershell
-# Terminal 1 — API server (required: database + optional AI)
-dotnet run --project FinTool.Server
-
-# Terminal 2 — Blazor app (with hot reload)
-dotnet watch --project FinTool --launch-profile http
+dotnet watch --project FinTool.Server --launch-profile http
 ```
 
-**First run:** `FinTool.Server` automatically creates the SQLite database at
-`%LocalAppData%\FamilyFinance\family-finance.db` — no migration commands needed.
+Then open [http://localhost:5111](http://localhost:5111) in your browser.
+
+**First run:** the SQLite database is created automatically — no migration commands needed.
 
 **Fresh clone:** run `dotnet restore` once before the above if packages haven't been downloaded yet.
 
 **Default credentials:** `Admin` / `Admin123!` — change the password after the first login via the Users page.
+
+---
+
+## Deployment
+
+Pre-built self-contained packages (no .NET installation required on the target machine) can be produced with the included scripts:
+
+```powershell
+# Windows PowerShell — produces release/ with win-x64 and linux-x64 zips
+.\publish.ps1 -Version 1.0.0
+```
+
+```bash
+# From the repo root on Linux/macOS
+./publish.sh 1.0.0
+```
+
+Each zip contains a single executable and a `wwwroot/` folder with the Blazor WebAssembly runtime.
+
+### Windows
+
+1. Unzip `family-finance-*-win-x64.zip` to any folder (e.g. `C:\FamilyFinance`).
+2. Double-click `FinTool.Server.exe` — or run it from a terminal:
+   ```cmd
+   FinTool.Server.exe
+   ```
+3. Open [http://localhost:5111](http://localhost:5111) in your browser.
+
+The database is created automatically at `%LocalAppData%\FamilyFinance\family-finance.db` on first run.
+
+To run on a different port:
+```cmd
+set ASPNETCORE_URLS=http://0.0.0.0:8080
+FinTool.Server.exe
+```
+
+### Linux
+
+1. Copy the zip to your server and unzip it:
+   ```bash
+   unzip family-finance-*-linux-x64.zip -d family-finance
+   cd family-finance
+   ```
+2. Make the binary executable and run it:
+   ```bash
+   chmod +x FinTool.Server
+   ./FinTool.Server
+   ```
+3. Open `http://<your-machine-ip>:5111` in any browser on your network.
+
+The database is created automatically at `~/.local/share/FamilyFinance/family-finance.db` on first run.
+
+#### Run as a systemd service (keep alive after logout)
+
+Create `/etc/systemd/system/family-finance.service`:
+
+```ini
+[Unit]
+Description=Family Finance App
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/family-finance
+ExecStart=/opt/family-finance/FinTool.Server
+Restart=always
+User=your-username
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start it:
+
+```bash
+sudo cp -r family-finance/ /opt/family-finance
+sudo systemctl daemon-reload
+sudo systemctl enable family-finance
+sudo systemctl start family-finance
+```
+
+To run on a different port, add `Environment=ASPNETCORE_URLS=http://0.0.0.0:8080` to the `[Service]` block.
 
 ---
 

@@ -46,6 +46,8 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 
 var app = builder.Build();
 app.UseCors();
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -118,4 +120,6 @@ api.MapAccountEndpoints();
 api.MapMiscEndpoints();
 api.MapAiEndpoints();
 
-app.Run("http://localhost:5111");
+app.MapFallbackToFile("index.html");
+
+app.Run();

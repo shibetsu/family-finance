@@ -14,7 +14,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 // IHttpClientFactory sets up the handler chain correctly for WASM's Fetch backend.
 builder.Services.AddSingleton<TokenHolder>();
 builder.Services.AddTransient<AuthHeaderHandler>();
-builder.Services.AddHttpClient("API", c => c.BaseAddress = new Uri("http://localhost:5111/"))
+builder.Services.AddHttpClient("API", c => c.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress))
     .AddHttpMessageHandler<AuthHeaderHandler>();
 builder.Services.AddScoped(sp =>
     sp.GetRequiredService<IHttpClientFactory>().CreateClient("API"));
