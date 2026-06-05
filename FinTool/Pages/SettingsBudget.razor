@@ -1,0 +1,15 @@
+@page "/settings/budget"
+@attribute [Authorize]
+
+<PageTitle>Budget Settings – FinTool</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-5">Budget</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <BudgetTab />
+    </MudItem>
+    <MudItem xs="12" md="6">
+        <RevenueTab />
+    </MudItem>
+</MudGrid>

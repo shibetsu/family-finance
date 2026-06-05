@@ -44,5 +44,6 @@ builder.Services.AddScoped<MonthState>();
 builder.Services.AddScoped<BudgetPlannerService>();
 builder.Services.AddScoped<GoalService>();
 builder.Services.AddScoped<AppInfoService>();
+builder.Services.AddScoped<EmailConfigService>();
 
 await builder.Build().RunAsync();

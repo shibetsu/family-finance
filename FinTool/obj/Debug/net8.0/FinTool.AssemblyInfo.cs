@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FinTool")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+aecd8b4e373782b4003e404c166ca1fbb7a39808")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+94501808f217272e9a9463f7add3bdfdb93e901b")]
 [assembly: System.Reflection.AssemblyProductAttribute("FinTool")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FinTool")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

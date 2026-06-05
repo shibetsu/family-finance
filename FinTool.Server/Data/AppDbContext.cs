@@ -8,7 +8,9 @@ class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     public DbSet<BudgetDraftEntity>    BudgetDrafts     => Set<BudgetDraftEntity>();
     public DbSet<AccountEntity>        Accounts         => Set<AccountEntity>();
     public DbSet<GoalEntity>           Goals            => Set<GoalEntity>();
-    public DbSet<UserEntity>           Users            => Set<UserEntity>();
+    public DbSet<UserEntity>                Users               => Set<UserEntity>();
+    public DbSet<PasswordResetTokenEntity>  PasswordResetTokens => Set<PasswordResetTokenEntity>();
+    public DbSet<EmailConfigEntity>         EmailConfig         => Set<EmailConfigEntity>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -21,5 +23,7 @@ class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
         mb.Entity<AccountEntity>().ToTable("Accounts");
         mb.Entity<GoalEntity>().ToTable("Goals");
         mb.Entity<UserEntity>().ToTable("Users");
+        mb.Entity<PasswordResetTokenEntity>().ToTable("PasswordResetTokens");
+        mb.Entity<EmailConfigEntity>().ToTable("EmailConfig");
     }
 }

@@ -4,6 +4,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ISnackbar Snackbar
 @inject IDialogService DialogSvc
+@inject IJSRuntime JS
 
 <PageTitle>Users – FinTool</PageTitle>
 
@@ -51,6 +52,12 @@ else
                     {
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">You</MudChip>
                     }
+                    @if (!user.HasPassword)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning">
+                            Pending setup
+                        </MudChip>
+                    }
                 </MudStack>
             </MudTd>
             <MudTd>
@@ -67,6 +74,15 @@ else
                 </MudChip>
             </MudTd>
             <MudTd Style="text-align:right">
+                @if (!user.HasPassword)
+                {
+                    <MudTooltip Text="Resend invite">
+                        <MudIconButton Icon="@Icons.Material.Filled.Email"
+                                       Size="Size.Small"
+                                       Color="Color.Warning"
+                                       OnClick="@(() => ResendInviteAsync(user))" />
+                    </MudTooltip>
+                }
                 <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                Size="Size.Small"
                                OnClick="@(() => OpenEditDialogAsync(user))" />
@@ -134,6 +150,29 @@ else
         else
         {
             Snackbar.Add("Failed to delete user.", Severity.Error);
+        }
+    }
+
+    private async Task ResendInviteAsync(AuthService.UserDto user)
+    {
+        var result = await Auth.ResendInviteAsync(user.Id);
+        if (!result.Ok)
+        {
+            Snackbar.Add(result.Error ?? "Failed to resend invite.", Severity.Error);
+            return;
+        }
+        if (result.SetPasswordUrl != null)
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", result.SetPasswordUrl);
+            Snackbar.Add(
+                result.Warning != null
+                    ? $"{result.Warning} Link copied to clipboard."
+                    : "Setup link copied to clipboard.",
+                Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("Invitation resent successfully.", Severity.Success);
         }
     }
 }

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "QoBsnhY3MQc=",
+  "dgSpecHash": "WDcOovA+kPw=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Admin\\Documents\\fintool\\FinTool\\FinTool.csproj",
+  "projectFilePath": "C:\\Users\\Admin\\Documents\\family-finance\\FinTool\\FinTool.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Admin\\.nuget\\packages\\microsoft.aspnetcore.authorization\\8.0.27\\microsoft.aspnetcore.authorization.8.0.27.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\microsoft.aspnetcore.components\\8.0.27\\microsoft.aspnetcore.components.8.0.27.nupkg.sha512",

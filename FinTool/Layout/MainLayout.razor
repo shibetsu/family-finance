@@ -60,11 +60,14 @@
             {
                 <MudNavLink Href="/accounts" Icon="@NavIcons.Accounts">Accounts</MudNavLink>
             }
-            <MudNavLink Href="/settings" Icon="@NavIcons.Settings">Settings</MudNavLink>
-            @if (_isOwner)
-            {
-                <MudNavLink Href="/users" Icon="@NavIcons.Users">Users</MudNavLink>
-            }
+            <MudNavGroup Title="Settings" Icon="@NavIcons.Settings" Expanded="@_settingsOpen" ExpandedChanged="@(v => _settingsOpen = v)">
+                <MudNavLink Href="/settings/budget" Icon="@NavIcons.Budget">Budget</MudNavLink>
+                @if (_isOwner)
+                {
+                    <MudNavLink Href="/settings/email" Icon="@NavIcons.Smtp">Email</MudNavLink>
+                    <MudNavLink Href="/users" Icon="@NavIcons.Users">Users</MudNavLink>
+                }
+            </MudNavGroup>
         </MudNavMenu>
         <MudDivider Style="margin-top:auto;flex-grow:0" />
         <MudText Typo="Typo.caption" Style="display:block;padding:6px 16px 0;opacity:0.4;font-size:0.7rem;user-select:none;">v@_version</MudText>
@@ -101,6 +104,7 @@
 @code {
     private bool   _drawerOpen   = false;
     private bool   _isDark       = false;
+    private bool   _settingsOpen = false;
     private string _username     = "";
     private string _displayName  = "";
     private bool   _isOwner      = false;
@@ -184,6 +188,7 @@
         _displayName = auth.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? _username;
         _isOwner     = auth.User.IsInRole("Owner");
         _version     = await AppInfo.GetVersionAsync();
+        _settingsOpen = Nav.Uri.Contains("/settings") || Nav.Uri.Contains("/users");
     }
 
     private async Task LogoutAsync()
@@ -205,6 +210,8 @@
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         _drawerOpen = false;
+        if (Nav.Uri.Contains("/settings") || Nav.Uri.Contains("/users"))
+            _settingsOpen = true;
         StateHasChanged();
     }
 

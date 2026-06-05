@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Admin\\Documents\\fintool\\FinTool\\FinTool.csproj": {}
+    "C:\\Users\\Admin\\Documents\\family-finance\\FinTool\\FinTool.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Admin\\Documents\\fintool\\FinTool\\FinTool.csproj": {
+    "C:\\Users\\Admin\\Documents\\family-finance\\FinTool\\FinTool.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Admin\\Documents\\fintool\\FinTool\\FinTool.csproj",
+        "projectUniqueName": "C:\\Users\\Admin\\Documents\\family-finance\\FinTool\\FinTool.csproj",
         "projectName": "FinTool",
-        "projectPath": "C:\\Users\\Admin\\Documents\\fintool\\FinTool\\FinTool.csproj",
+        "projectPath": "C:\\Users\\Admin\\Documents\\family-finance\\FinTool\\FinTool.csproj",
         "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Admin\\Documents\\fintool\\FinTool\\obj\\",
+        "outputPath": "C:\\Users\\Admin\\Documents\\family-finance\\FinTool\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config"

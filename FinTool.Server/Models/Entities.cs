@@ -78,6 +78,23 @@ class UserEntity
     public string Role         { get; set; } = "User";
 }
 
+class PasswordResetTokenEntity
+{
+    public Guid     Id        { get; set; } = Guid.NewGuid();
+    public Guid     UserId    { get; set; }
+    public string   Token     { get; set; } = "";
+    public DateTime ExpiresAt { get; set; }
+    public bool     Used      { get; set; }
+}
+
+class EmailConfigEntity
+{
+    public int    Id          { get; set; } = 1;
+    public string FromAddress { get; set; } = "";
+    public string FromName    { get; set; } = "Family Finance";
+    public string AppBaseUrl  { get; set; } = "http://localhost:5111";
+}
+
 record DraftRowDto(string Name, string Color, decimal Amount);
 record BudgetDraftDto(Guid Id, string Name, DraftRowDto[] Expenses, DraftRowDto[] Revenue);
 
@@ -86,8 +103,11 @@ record LookupRequest(string Description);
 record SetCacheRequest(string Description, string Category);
 record CloseMonthRequest(string MonthKey);
 record LoginRequest(string Username, string Password);
-record RegisterRequest(string Username, string Password, string? Email, string? DisplayName, string? Role);
+record RegisterRequest(string Username, string? Email, string? DisplayName, string? Role);
+record SetPasswordRequest(string Token, string Password);
 record UpdateUserRequest(string? Username, string? Email, string? DisplayName, string? Role, string? Password);
+record UpdateEmailConfigRequest(string? FromAddress, string? FromName, string? AppBaseUrl);
+record TestEmailRequest(string To);
 
 record ClassifyRequest(
     [property: JsonPropertyName("transactions")] string[] Transactions,

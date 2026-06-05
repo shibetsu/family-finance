@@ -65,6 +65,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(o =>
     o.AddPolicy("OwnerOnly", p => p.RequireRole("Owner")));
 
+builder.Services.AddScoped<EmailService>();
+
 // PascalCase responses to match Blazor model property names;
 // case-insensitive reads so PostAsJsonAsync (camelCase) also binds correctly
 builder.Services.ConfigureHttpJsonOptions(o =>
@@ -128,6 +130,28 @@ using (var scope = app.Services.CreateScope())
     // Existing rows get 'Owner' so the seeded Admin keeps full access
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Users ADD COLUMN Role TEXT NOT NULL DEFAULT 'Owner'"); }
     catch { /* column already exists */ }
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS PasswordResetTokens (
+            Id        TEXT NOT NULL PRIMARY KEY,
+            UserId    TEXT NOT NULL,
+            Token     TEXT NOT NULL UNIQUE,
+            ExpiresAt TEXT NOT NULL,
+            Used      INTEGER NOT NULL DEFAULT 0
+        )");
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS EmailConfig (
+            Id          INTEGER NOT NULL PRIMARY KEY,
+            SmtpHost    TEXT NOT NULL DEFAULT '',
+            SmtpPort    INTEGER NOT NULL DEFAULT 587,
+            Username    TEXT NOT NULL DEFAULT '',
+            Password    TEXT NOT NULL DEFAULT '',
+            FromAddress TEXT NOT NULL DEFAULT '',
+            FromName    TEXT NOT NULL DEFAULT 'Family Finance',
+            AppBaseUrl  TEXT NOT NULL DEFAULT 'http://localhost:5111'
+        )");
+    if (!db.EmailConfig.Any())
+        db.EmailConfig.Add(new EmailConfigEntity { Id = 1 });
+    db.SaveChanges();
     if (!db.Users.Any())
     {
         var (hash, salt) = AuthEndpoints.HashPassword("Admin123!");
@@ -148,6 +172,7 @@ api.MapBudgetEndpoints();
 api.MapAccountEndpoints();
 api.MapMiscEndpoints();
 api.MapAiEndpoints();
+api.MapSettingsEndpoints();
 
 app.MapFallbackToFile("index.html");
 
