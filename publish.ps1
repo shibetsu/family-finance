@@ -101,7 +101,7 @@ foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirec
         Set-Content -Path (Join-Path $tmpDir 'CreateTar.csproj') -Value $csproj -Encoding utf8
         Set-Content -Path (Join-Path $tmpDir 'Program.cs')       -Value $program -Encoding utf8
 
-        $runArgs = @('run', '--nologo', '--project', $tmpDir, '--') + @($absSource, $absDest) + $Executables
+        $runArgs = @('--nologo', 'run', '--project', $tmpDir, '--') + @($absSource, $absDest) + $Executables
         & dotnet @runArgs
         if ($LASTEXITCODE -ne 0) { throw "tar.gz creation failed for $DestTarGz" }
     } finally {
