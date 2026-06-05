@@ -14,7 +14,15 @@ var jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret));
 // ---------------------------------------------------------------------------
 // Builder
 // ---------------------------------------------------------------------------
-var builder = WebApplication.CreateBuilder(args);
+// Anchor content root to the executable's directory so wwwroot is always found
+// regardless of what working directory the process is launched from (systemd, scripts, etc.)
+var executableDir = Path.GetDirectoryName(Environment.ProcessPath) ?? Directory.GetCurrentDirectory();
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = executableDir,
+    WebRootPath = Path.Combine(executableDir, "wwwroot")
+});
 
 builder.Services.AddCors(o =>
     o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
