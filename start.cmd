@@ -3,7 +3,6 @@ set "root=%~dp0"
 set "root=%root:~0,-1%"
 
 echo Starting FinTool...
+echo App will be available at http://localhost:5111
 
-start "FinTool - API Server" cmd /k "cd /d "%root%" && dotnet run --project FinTool.Server"
-
-start "FinTool - App" cmd /k "cd /d "%root%" && dotnet watch --project FinTool --launch-profile http"
+start "FinTool" cmd /k "cd /d "%root%" && dotnet run --project FinTool.Server --launch-profile http"

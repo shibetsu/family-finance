@@ -8,7 +8,8 @@ The server now hosts the Blazor WASM frontend — only one process is needed.
 
 ```powershell
 # Dev with hot reload — serves both API and Blazor WASM at http://localhost:5111
-dotnet watch --project FinTool.Server --launch-profile http
+# --no-hot-reload disables the browser-refresh proxy that opens the wrong port and breaks API calls
+dotnet watch --project FinTool.Server --launch-profile http --no-hot-reload
 ```
 
 No migration commands are needed — the database is created automatically on first run:

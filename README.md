@@ -62,13 +62,16 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 - Accounts appear as colored chips in the Transactions table and can be assigned to transactions inline via dropdown
 
 ### Settings
-- Manage **budget categories** (name, monthly amount, color, optional ignore flag) and **revenue categories** (name, color, optional ignore flag) side by side in a two-column layout
+- **General** — configure the App Base URL used when generating set-password links for new users
+- **Budget** — manage budget categories (name, monthly amount, color, optional ignore flag) and revenue categories (name, color, optional ignore flag) side by side in a two-column layout
 - Categories marked as ignored are excluded from dashboard totals and charts
 - Color changes take effect immediately across charts, breakdowns, and the Planner
 
 ### Users *(Owner only)*
 - The **Owner** role can add, edit, and delete user accounts from the Users page (`/users`)
-- Each user has a username, optional display name, optional email, and a role (Owner or Member)
+- Each user has a username, optional display name, optional email, and a role (Owner or User)
+- When a user is created, a **set-password link** is shown immediately in the dialog — copy and share it with the new user directly; no email is sent
+- The link icon on any pending user regenerates a fresh setup link on demand
 - Owners cannot delete their own account
 
 ---
@@ -82,7 +85,7 @@ family-finance/
 │   │   ├── ColorPicker.razor         # Swatch row + native picker fallback (used in dialogs)
 │   │   ├── InlineColorPicker.razor   # Compact circle that opens floating swatch panel (used in tables)
 │   │   ├── CategoryDialog.razor / RevenueCategoryDialog.razor / GoalDialog.razor
-│   │   ├── AddUserDialog.razor / EditUserDialog.razor
+│   │   ├── AddUserDialog.razor / EditUserDialog.razor / SetupLinkDialog.razor
 │   │   ├── BudgetTab.razor / RevenueTab.razor
 │   │   ├── TransactionsTab.razor + TransactionsTab.razor.cs   # code-behind pattern
 │   │   ├── DashboardTab.razor + DashboardTab.razor.cs         # code-behind pattern
@@ -95,17 +98,19 @@ family-finance/
 │   │   ├── Transaction.cs            # Amount: positive=expense, negative=income; GoalId nullable
 │   │   ├── BudgetCategory.cs / RevenueCategory.cs
 │   │   ├── BudgetDraft.cs            # Draft + DraftRow for Planner
-│   │   ├── Goal.cs
-│   │   └── Account.cs
+│   │   ├── Goal.cs / Account.cs
+│   │   └── AppSettings.cs            # App Base URL model
 │   ├── Pages/
 │   │   ├── Login.razor               # /login — public, uses LoginLayout
 │   │   ├── Dashboard.razor / Transactions.razor / Recurring.razor
 │   │   ├── BudgetPlanner.razor + BudgetPlanner.razor.cs       # code-behind pattern
 │   │   ├── Goals.razor               # /goals
 │   │   ├── Accounts.razor            # /accounts
-│   │   ├── Settings.razor            # /settings — embeds BudgetTab + RevenueTab side by side
+│   │   ├── Settings.razor            # /settings/budget — embeds BudgetTab + RevenueTab side by side
+│   │   ├── SettingsGeneral.razor     # /settings/general — App Base URL config (Owner only)
 │   │   └── Users.razor               # /users — Owner only
 │   ├── Services/
+│   │   ├── AppSettingsService.cs     # GET/PUT /api/app-settings
 │   │   ├── AuthService.cs            # Login, token storage, user CRUD
 │   │   ├── AuthHeaderHandler.cs      # DelegatingHandler — injects Bearer token on every request
 │   │   ├── MonthState.cs             # Global selected month — shared across all pages via OnChange event
@@ -432,7 +437,8 @@ The schema is created automatically on first startup — no migrations to run. C
 | `POST` | `/api/auth/login` | Public | Exchange username + password for a JWT |
 | `GET` | `/api/auth/validate` | Required | Check whether the current token is still valid |
 | `GET` | `/api/auth/users` | Owner only | List all user accounts |
-| `POST` | `/api/auth/register` | Owner only | Create a new user account |
+| `POST` | `/api/auth/register` | Owner only | Create a new user; returns `SetPasswordUrl` to share manually |
+| `POST` | `/api/auth/resend-invite/{id}` | Owner only | Generate a fresh set-password link for a pending user |
 | `PUT` | `/api/auth/users/{id}` | Required | Update own or (Owner) any user's profile |
 | `DELETE` | `/api/auth/users/{id}` | Owner only | Delete a user account |
 
@@ -481,6 +487,8 @@ The schema is created automatically on first startup — no migrations to run. C
 | `GET` | `/api/closed-months` | All locked month keys |
 | `POST` | `/api/closed-months` | Lock a month |
 | `GET` | `/api/ping` | Health check — returns `{ status, version }` (public) |
+| `GET` | `/api/app-settings` | Owner only | Get app settings (App Base URL) |
+| `PUT` | `/api/app-settings` | Owner only | Update app settings |
 
 ### AI Classification & Chat
 

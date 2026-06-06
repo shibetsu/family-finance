@@ -106,8 +106,7 @@ record LoginRequest(string Username, string Password);
 record RegisterRequest(string Username, string? Email, string? DisplayName, string? Role);
 record SetPasswordRequest(string Token, string Password);
 record UpdateUserRequest(string? Username, string? Email, string? DisplayName, string? Role, string? Password);
-record UpdateEmailConfigRequest(string? FromAddress, string? FromName, string? AppBaseUrl);
-record TestEmailRequest(string To);
+record UpdateAppSettingsRequest(string? AppBaseUrl);
 
 record ClassifyRequest(
     [property: JsonPropertyName("transactions")] string[] Transactions,

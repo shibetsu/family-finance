@@ -2,28 +2,19 @@
     <DialogContent>
         @if (_done)
         {
-            @if (_warning != null)
-            {
-                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">@_warning</MudAlert>
-            }
-            else
-            {
-                <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">
-                    Invitation email sent to <strong>@_email</strong>.
-                </MudAlert>
-            }
-            @if (_setPasswordUrl != null)
-            {
-                <MudText Typo="Typo.body2" Class="mb-1" Style="word-break:break-all;font-size:0.8rem;color:var(--mud-palette-text-secondary)">
-                    @_setPasswordUrl
-                </MudText>
-                <MudButton Variant="Variant.Outlined"
-                           Size="Size.Small"
-                           StartIcon="@Icons.Material.Filled.ContentCopy"
-                           OnClick="CopyUrlAsync">
-                    @(_copied ? "Copied!" : "Copy link")
-                </MudButton>
-            }
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">
+                User <strong>@_username</strong> created. Share the setup link below.
+            </MudAlert>
+            <MudText Typo="Typo.body2" Class="mb-2"
+                     Style="word-break:break-all;font-size:0.8rem;color:var(--mud-palette-text-secondary)">
+                @_setPasswordUrl
+            </MudText>
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.ContentCopy"
+                       OnClick="CopyUrlAsync">
+                @(_copied ? "Copied!" : "Copy link")
+            </MudButton>
         }
         else
         {
@@ -41,9 +32,7 @@
                               Class="mb-3"
                               Immediate="true" />
                 <MudTextField @bind-Value="_email"
-                              Label="Email"
-                              Required="true"
-                              RequiredError="Email is required to send the setup link."
+                              Label="Email (optional)"
                               Variant="Variant.Outlined"
                               Class="mb-3"
                               InputType="InputType.Email"
@@ -97,7 +86,6 @@
     private bool    _saving      = false;
     private bool    _done        = false;
     private bool    _copied      = false;
-    private string? _warning;
     private string? _setPasswordUrl;
 
     private async Task SubmitAsync()
@@ -116,7 +104,6 @@
             _error = result.Error ?? "An error occurred.";
             return;
         }
-        _warning        = result.Warning;
         _setPasswordUrl = result.SetPasswordUrl;
         _done           = true;
     }

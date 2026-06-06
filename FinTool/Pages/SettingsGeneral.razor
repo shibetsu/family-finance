@@ -1,0 +1,66 @@
+@page "/settings/general"
+@attribute [Authorize(Roles = "Owner")]
+@inject AppSettingsService AppSettings
+@inject ISnackbar Snackbar
+
+<PageTitle>General Settings – FinTool</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-5">General</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="8" lg="6">
+        <MudPaper Elevation="1" Class="pa-5" Style="border-radius:12px">
+            @if (_loading)
+            {
+                <MudProgressLinear Indeterminate="true" />
+            }
+            else
+            {
+                <MudGrid Spacing="3">
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_appBaseUrl"
+                                      Label="App Base URL"
+                                      HelperText="Used in the set-password link shown when creating new accounts."
+                                      Variant="Variant.Outlined"
+                                      Immediate="true" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="@_saving"
+                           Class="mt-4"
+                           OnClick="SaveAsync">
+                    @(_saving ? "Saving…" : "Save")
+                </MudButton>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private bool   _loading    = true;
+    private bool   _saving     = false;
+    private string _appBaseUrl = "http://localhost:5111";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Task.Delay(1);
+        var cfg = await AppSettings.GetAsync();
+        if (cfg is not null)
+            _appBaseUrl = cfg.AppBaseUrl;
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var (ok, err) = await AppSettings.SaveAsync(_appBaseUrl);
+        _saving = false;
+        Snackbar.Add(ok ? "Settings saved." : err ?? "Failed to save.",
+                     ok ? Severity.Success : Severity.Error);
+        StateHasChanged();
+    }
+}

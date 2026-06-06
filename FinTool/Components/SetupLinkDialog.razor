@@ -1,0 +1,41 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-2">
+            Share this link with <strong>@Username</strong> to let them set their password:
+        </MudText>
+        <MudText Typo="Typo.body2" Class="mb-3"
+                 Style="word-break:break-all;font-size:0.8rem;color:var(--mud-palette-text-secondary)">
+            @SetPasswordUrl
+        </MudText>
+        <MudButton Variant="Variant.Outlined"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.ContentCopy"
+                   OnClick="CopyAsync">
+            @(_copied ? "Copied!" : "Copy link")
+        </MudButton>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="() => MudDialog.Close()">
+            Close
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@inject IJSRuntime JS
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public string Username      { get; set; } = "";
+    [Parameter] public string SetPasswordUrl { get; set; } = "";
+
+    private bool _copied;
+
+    private async Task CopyAsync()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", SetPasswordUrl);
+        _copied = true;
+        StateHasChanged();
+    }
+}

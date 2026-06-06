@@ -61,10 +61,13 @@
                 <MudNavLink Href="/accounts" Icon="@NavIcons.Accounts">Accounts</MudNavLink>
             }
             <MudNavGroup Title="Settings" Icon="@NavIcons.Settings" Expanded="@_settingsOpen" ExpandedChanged="@(v => _settingsOpen = v)">
+                @if (_isOwner)
+                {
+                    <MudNavLink Href="/settings/general" Icon="@NavIcons.General">General</MudNavLink>
+                }
                 <MudNavLink Href="/settings/budget" Icon="@NavIcons.Budget">Budget</MudNavLink>
                 @if (_isOwner)
                 {
-                    <MudNavLink Href="/settings/email" Icon="@NavIcons.Smtp">Email</MudNavLink>
                     <MudNavLink Href="/users" Icon="@NavIcons.Users">Users</MudNavLink>
                 }
             </MudNavGroup>

@@ -76,11 +76,11 @@ else
             <MudTd Style="text-align:right">
                 @if (!user.HasPassword)
                 {
-                    <MudTooltip Text="Resend invite">
-                        <MudIconButton Icon="@Icons.Material.Filled.Email"
+                    <MudTooltip Text="Get setup link">
+                        <MudIconButton Icon="@Icons.Material.Filled.Link"
                                        Size="Size.Small"
                                        Color="Color.Warning"
-                                       OnClick="@(() => ResendInviteAsync(user))" />
+                                       OnClick="@(() => GetSetupLinkAsync(user))" />
                     </MudTooltip>
                 }
                 <MudIconButton Icon="@Icons.Material.Filled.Edit"
@@ -153,26 +153,19 @@ else
         }
     }
 
-    private async Task ResendInviteAsync(AuthService.UserDto user)
+    private async Task GetSetupLinkAsync(AuthService.UserDto user)
     {
         var result = await Auth.ResendInviteAsync(user.Id);
         if (!result.Ok)
         {
-            Snackbar.Add(result.Error ?? "Failed to resend invite.", Severity.Error);
+            Snackbar.Add(result.Error ?? "Failed to generate setup link.", Severity.Error);
             return;
         }
-        if (result.SetPasswordUrl != null)
+        var parameters = new DialogParameters<SetupLinkDialog>
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", result.SetPasswordUrl);
-            Snackbar.Add(
-                result.Warning != null
-                    ? $"{result.Warning} Link copied to clipboard."
-                    : "Setup link copied to clipboard.",
-                Severity.Warning);
-        }
-        else
-        {
-            Snackbar.Add("Invitation resent successfully.", Severity.Success);
-        }
+            { x => x.Username, user.Username },
+            { x => x.SetPasswordUrl, result.SetPasswordUrl ?? "" }
+        };
+        await DialogSvc.ShowAsync<SetupLinkDialog>("Setup link", parameters);
     }
 }

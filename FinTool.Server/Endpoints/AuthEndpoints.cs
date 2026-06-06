@@ -16,14 +16,10 @@ static class AuthEndpoints
         });
 
         // ── Register (Owner only) ────────────────────────────────────────────
-        app.MapPost("/api/auth/register", async (
-            RegisterRequest req, AppDbContext db,
-            EmailService emailSvc, IConfiguration config) =>
+        app.MapPost("/api/auth/register", async (RegisterRequest req, AppDbContext db) =>
         {
             if (string.IsNullOrWhiteSpace(req.Username))
                 return Results.BadRequest(new { Error = "Username is required." });
-            if (string.IsNullOrWhiteSpace(req.Email))
-                return Results.BadRequest(new { Error = "Email is required to send the setup link." });
             if (await db.Users.AnyAsync(u => u.Username == req.Username))
                 return Results.BadRequest(new { Error = "Username already exists." });
 
@@ -35,7 +31,7 @@ static class AuthEndpoints
                 Username     = req.Username,
                 PasswordHash = "",
                 Salt         = "",
-                Email        = req.Email,
+                Email        = req.Email ?? "",
                 DisplayName  = req.DisplayName ?? "",
                 Role         = role
             });
@@ -44,9 +40,8 @@ static class AuthEndpoints
             db.PasswordResetTokens.Add(resetToken);
             await db.SaveChangesAsync();
 
-            var setPasswordUrl = BuildSetPasswordUrl(config, tokenValue);
-            return await SendWelcomeEmail(emailSvc, req.Email,
-                req.DisplayName ?? req.Username, req.Username, setPasswordUrl);
+            var setPasswordUrl = await BuildSetPasswordUrl(db, tokenValue);
+            return Results.Ok(new { SetPasswordUrl = setPasswordUrl });
         }).RequireAuthorization("OwnerOnly");
 
         // ── Update user ──────────────────────────────────────────────────────
@@ -96,15 +91,11 @@ static class AuthEndpoints
 
         app.MapGet("/api/auth/validate", () => Results.Ok()).RequireAuthorization();
 
-        // ── Resend invite (Owner only) ───────────────────────────────────────
-        app.MapPost("/api/auth/resend-invite/{id:guid}", async (
-            Guid id, AppDbContext db,
-            EmailService emailSvc, IConfiguration config) =>
+        // ── Get setup link (Owner only) ──────────────────────────────────────
+        app.MapPost("/api/auth/resend-invite/{id:guid}", async (Guid id, AppDbContext db) =>
         {
             var user = await db.Users.FindAsync(id);
             if (user is null) return Results.NotFound();
-            if (string.IsNullOrWhiteSpace(user.Email))
-                return Results.BadRequest(new { Error = "User has no email address." });
 
             var old = await db.PasswordResetTokens
                 .Where(t => t.UserId == id && !t.Used).ToListAsync();
@@ -114,9 +105,8 @@ static class AuthEndpoints
             db.PasswordResetTokens.Add(resetToken);
             await db.SaveChangesAsync();
 
-            var setPasswordUrl = BuildSetPasswordUrl(config, tokenValue);
-            return await SendWelcomeEmail(emailSvc, user.Email,
-                user.DisplayName, user.Username, setPasswordUrl);
+            var setPasswordUrl = await BuildSetPasswordUrl(db, tokenValue);
+            return Results.Ok(new { SetPasswordUrl = setPasswordUrl });
         }).RequireAuthorization("OwnerOnly");
 
         // ── Validate token (public) ──────────────────────────────────────────
@@ -167,35 +157,11 @@ static class AuthEndpoints
         return (tokenValue, entity);
     }
 
-    private static string BuildSetPasswordUrl(IConfiguration config, string token)
+    private static async Task<string> BuildSetPasswordUrl(AppDbContext db, string token)
     {
-        var baseUrl = (config["Email:AppBaseUrl"] ?? "http://localhost:5111").TrimEnd('/');
+        var cfg     = await db.EmailConfig.FindAsync(1);
+        var baseUrl = (cfg?.AppBaseUrl ?? "http://localhost:5111").TrimEnd('/');
         return $"{baseUrl}/set-password?token={token}";
-    }
-
-    private static async Task<IResult> SendWelcomeEmail(
-        EmailService emailSvc, string email, string name, string username, string setPasswordUrl)
-    {
-        if (!await emailSvc.IsConfiguredAsync())
-            return Results.Ok(new
-            {
-                Warning        = "Email is not configured. Share the setup link with the user manually.",
-                SetPasswordUrl = setPasswordUrl
-            });
-        try
-        {
-            await emailSvc.SendWelcomeEmailAsync(email, name, username, setPasswordUrl);
-            return Results.Ok(new { });
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[Email] Failed to send to {email}: {ex.Message}");
-            return Results.Ok(new
-            {
-                Warning        = $"User created but email could not be sent ({ex.Message}). Share the link manually.",
-                SetPasswordUrl = setPasswordUrl
-            });
-        }
     }
 
     internal static string GenerateToken(string username, string displayName, string role, SymmetricSecurityKey key)

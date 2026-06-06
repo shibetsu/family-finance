@@ -172,7 +172,7 @@ api.MapBudgetEndpoints();
 api.MapAccountEndpoints();
 api.MapMiscEndpoints();
 api.MapAiEndpoints();
-api.MapSettingsEndpoints();
+app.MapSettingsEndpoints();
 
 app.MapFallbackToFile("index.html");
 
