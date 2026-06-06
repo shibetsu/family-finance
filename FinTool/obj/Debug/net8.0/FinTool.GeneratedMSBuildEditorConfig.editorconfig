@@ -89,6 +89,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSZXZlbnVlVGFiLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Admin/Documents/family-finance/FinTool/Components/SetupLinkDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTZXR1cExpbmtEaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Admin/Documents/family-finance/FinTool/Components/TransactionsTab.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xUcmFuc2FjdGlvbnNUYWIucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -129,8 +133,8 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2V0dGluZ3NCdWRnZXQucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/Admin/Documents/family-finance/FinTool/Pages/SettingsSmtp.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2V0dGluZ3NTbXRwLnJhem9y
+[C:/Users/Admin/Documents/family-finance/FinTool/Pages/SettingsGeneral.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcU2V0dGluZ3NHZW5lcmFsLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Admin/Documents/family-finance/FinTool/Pages/Transactions.razor]

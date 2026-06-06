@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "KJ5epz/F4YU=",
+  "dgSpecHash": "XoMt1kdQVwc=",
   "success": true,
   "projectFilePath": "C:\\Users\\Admin\\Documents\\family-finance\\FinTool.Server\\FinTool.Server.csproj",
   "expectedPackageFiles": [
@@ -63,6 +63,7 @@
     "C:\\Users\\Admin\\.nuget\\packages\\microsoft.identitymodel.tokens\\7.1.2\\microsoft.identitymodel.tokens.7.1.2.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\microsoft.jsinterop\\8.0.27\\microsoft.jsinterop.8.0.27.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\microsoft.jsinterop.webassembly\\8.0.27\\microsoft.jsinterop.webassembly.8.0.27.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.27\\microsoft.net.illink.tasks.8.0.27.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\mimekit\\4.17.0\\mimekit.4.17.0.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\mudblazor\\7.15.0\\mudblazor.7.15.0.nupkg.sha512",
@@ -86,7 +87,10 @@
     "C:\\Users\\Admin\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\system.security.cryptography.pkcs\\8.0.1\\system.security.cryptography.pkcs.8.0.1.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\system.text.encoding.codepages\\6.0.0\\system.text.encoding.codepages.6.0.0.nupkg.sha512",
-    "C:\\Users\\Admin\\.nuget\\packages\\system.threading.channels\\6.0.0\\system.threading.channels.6.0.0.nupkg.sha512"
+    "C:\\Users\\Admin\\.nuget\\packages\\system.threading.channels\\6.0.0\\system.threading.channels.6.0.0.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\microsoft.netcore.app.runtime.osx-arm64\\8.0.27\\microsoft.netcore.app.runtime.osx-arm64.8.0.27.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.osx-arm64\\8.0.27\\microsoft.aspnetcore.app.runtime.osx-arm64.8.0.27.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\microsoft.netcore.app.host.osx-arm64\\8.0.27\\microsoft.netcore.app.host.osx-arm64.8.0.27.nupkg.sha512"
   ],
   "logs": []
 }

@@ -51,12 +51,12 @@
         <div style="background:var(--mud-palette-primary);padding:13px 16px;">
             <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                 <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
-                    <MudIcon Icon="@HeaderIcon" Style="color:white;font-size:18px;" />
-                    <MudText Typo="Typo.subtitle2" Style="color:white;font-weight:600;letter-spacing:0.2px;">@HeaderTitle</MudText>
+                    <MudIcon Icon="@HeaderIcon" Style="color:var(--mud-palette-primary-text);font-size:18px;" />
+                    <MudText Typo="Typo.subtitle2" Style="color:var(--mud-palette-primary-text);font-weight:600;letter-spacing:0.2px;">@HeaderTitle</MudText>
                 </MudStack>
                 @if (Context == ChatBotContext.Dashboard)
                 {
-                    <MudText Typo="Typo.caption" Style="color:rgba(255,255,255,0.65);">@_monthDisplay</MudText>
+                    <MudText Typo="Typo.caption" Style="color:var(--mud-palette-primary-text);opacity:0.65;">@_monthDisplay</MudText>
                 }
             </MudStack>
         </div>

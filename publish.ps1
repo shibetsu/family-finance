@@ -41,7 +41,8 @@ if (Test-Path $OutDir) { Remove-Item $OutDir -Recurse -Force }
 # Creates a ZIP with forward-slash entry paths (Compress-Archive uses backslashes, breaking Linux extraction).
 function New-CrossPlatformZip {
     param([string]$SourceDir, [string]$DestZip)
-    Add-Type -Assembly System.IO.Compression.FileSystem
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
     $absSource = [System.IO.Path]::GetFullPath($SourceDir)
     if (Test-Path $DestZip) { Remove-Item $DestZip -Force }
     $zipStream = [System.IO.File]::Open($DestZip, [System.IO.FileMode]::Create)
