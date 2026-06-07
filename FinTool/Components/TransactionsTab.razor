@@ -19,6 +19,12 @@
 
 <!-- Header -->
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    @if (!string.IsNullOrEmpty(InitialCategory))
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                       Title="Back to Dashboard"
+                       OnClick="@(() => Nav.NavigateTo($"/?month={MonthSvc.Month:yyyy-MM}"))" />
+    }
     <MudText Typo="Typo.h5">Transactions</MudText>
     <MudSpacer />
     <MudButton Variant="Variant.Outlined"
