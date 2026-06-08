@@ -5,3 +5,6 @@ obj/
 .claude/
 *.lnk
 release/
+sync-db.params.json
+db-backups/
+deploy-remote.params.json
