@@ -8,3 +8,6 @@ release/
 sync-db.params.json
 db-backups/
 deploy-remote.params.json
+archives/
+TODO.md
+CLAUDE.md

@@ -22,12 +22,12 @@ No migration commands are needed — the database is created automatically on fi
 
 ```powershell
 # Windows PowerShell — builds win-x64 and linux-x64 zips in ./release/
-.\publish.ps1 -Version 1.2.0
+.\scripts\publish.ps1 -Version 1.2.0
 ```
 
 ```bash
 # Bash (from repo root)
-./publish.sh 1.2.0
+./scripts/publish.sh 1.2.0
 ```
 
 Each zip contains a self-contained single-file executable plus the `wwwroot/` folder with the Blazor WASM runtime. On Linux: `chmod +x FinTool.Server && ./FinTool.Server`. Listens on `http://0.0.0.0:5111` by default; override with `ASPNETCORE_URLS` env var.

@@ -8,9 +8,12 @@
 
 $ErrorActionPreference = "Stop"
 
-$ParamsFile  = Join-Path $PSScriptRoot "deploy-remote.params.json"
-$ReleaseDir  = Join-Path $PSScriptRoot "release"
-$VersionFile = Join-Path $PSScriptRoot "version.txt"
+# This script lives in scripts/, so the repo root (where release/, version.txt, and the
+# generated params file live) is one level up.
+$RepoRoot    = Split-Path -Parent $PSScriptRoot
+$ParamsFile  = Join-Path $RepoRoot "deploy-remote.params.json"
+$ReleaseDir  = Join-Path $RepoRoot "release"
+$VersionFile = Join-Path $RepoRoot "version.txt"
 
 $saved = if (Test-Path $ParamsFile) { Get-Content $ParamsFile -Raw | ConvertFrom-Json } else { $null }
 $latestVersion = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { $saved.Version }

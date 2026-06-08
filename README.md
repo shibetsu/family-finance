@@ -195,18 +195,18 @@ The version is tracked automatically in `version.txt` and the patch number is in
 
 ```powershell
 # Windows PowerShell — auto-increments patch version
-.\publish.ps1
+.\scripts\publish.ps1
 
 # Override to a specific version
-.\publish.ps1 -Version 2.0.0
+.\scripts\publish.ps1 -Version 2.0.0
 ```
 
 ```bash
 # From the repo root on Linux/macOS — auto-increments patch version
-./publish.sh
+./scripts/publish.sh
 
 # Override to a specific version
-./publish.sh 2.0.0
+./scripts/publish.sh 2.0.0
 ```
 
 Each run produces a `release/` folder containing only the final archives (staging folders are removed automatically):

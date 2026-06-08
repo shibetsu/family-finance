@@ -1,6 +1,6 @@
 @echo off
-set "root=%~dp0"
-set "root=%root:~0,-1%"
+rem This script lives in scripts/, so the repo root is its parent directory.
+for %%i in ("%~dp0..") do set "root=%%~fi"
 
 echo Starting FinTool...
 echo App will be available at http://localhost:5111

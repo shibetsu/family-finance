@@ -6,9 +6,11 @@ $ErrorActionPreference = "Stop"
 # Use $PSScriptRoot so all paths are absolute regardless of the caller's working directory.
 # [System.IO.Path]::GetFullPath uses .NET's Environment.CurrentDirectory, which PowerShell's
 # Set-Location does not update — anchoring to $PSScriptRoot avoids that mismatch.
-$OutDir      = Join-Path $PSScriptRoot "release"
-$ArchivesDir = Join-Path $PSScriptRoot "archives"
-$VersionFile = Join-Path $PSScriptRoot "version.txt"
+# This script lives in scripts/, so the repo root is one level up.
+$RepoRoot    = Split-Path -Parent $PSScriptRoot
+$OutDir      = Join-Path $RepoRoot "release"
+$ArchivesDir = Join-Path $RepoRoot "archives"
+$VersionFile = Join-Path $RepoRoot "version.txt"
 
 # Read previous version before overwriting (used for archiving).
 $PrevVersion = if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { "" }
@@ -139,7 +141,7 @@ foreach ($t in $rids) {
     $dest = "$OutDir\$rid"
     Write-Host "`nPublishing $rid..."
 
-    dotnet publish (Join-Path $PSScriptRoot "FinTool.Server") `
+    dotnet publish (Join-Path $RepoRoot "FinTool.Server") `
         -c Release `
         -r $rid `
         --self-contained true `

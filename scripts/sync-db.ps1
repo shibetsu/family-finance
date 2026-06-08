@@ -4,8 +4,11 @@
 
 $ErrorActionPreference = "Stop"
 
-$ParamsFile = Join-Path $PSScriptRoot "sync-db.params.json"
-$BackupDir  = Join-Path $PSScriptRoot "db-backups"
+# This script lives in scripts/, so the repo root is one level up; params file and
+# backups live at the repo root alongside the other generated/ignored directories.
+$RepoRoot   = Split-Path -Parent $PSScriptRoot
+$ParamsFile = Join-Path $RepoRoot "sync-db.params.json"
+$BackupDir  = Join-Path $RepoRoot "db-backups"
 
 $saved = if (Test-Path $ParamsFile) { Get-Content $ParamsFile -Raw | ConvertFrom-Json } else { $null }
 
