@@ -1,0 +1,32 @@
+@using System.Globalization
+@inject MonthState MonthSvc
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="2" Class="py-2">
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                           Size="Size.Large"
+                           OnClick="@(() => Step(MonthSvc.PrevMonth))" />
+            <MudText Typo="Typo.h6" Style="min-width:170px;text-align:center;font-weight:600">
+                @MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)
+            </MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                           Size="Size.Large"
+                           Disabled="@(MonthSvc.Month >= MonthSvc.CurrentMonth)"
+                           OnClick="@(() => Step(MonthSvc.NextMonth))" />
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Close())">Done</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = default!;
+
+    private void Step(Action move)
+    {
+        move();
+        StateHasChanged();
+    }
+}

@@ -112,7 +112,7 @@ else if (_confirmed.Count > 0)
 
     @if (_filtered.Count > 0)
     {
-        <MudTable T="Transaction" Items="_filtered" Dense="true" Hover="true" Elevation="1">
+        <MudTable T="Transaction" Items="_filtered" Dense="true" Hover="true" Elevation="1" Breakpoint="Breakpoint.Sm">
             <HeaderContent>
                 <MudTh Style="width:44px">
                     @if (!_isMonthClosed)

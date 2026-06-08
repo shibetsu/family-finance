@@ -6,9 +6,10 @@
 @inject AuthService Auth
 @inject AuthenticationStateProvider AuthStateProvider
 @inject AppInfoService AppInfo
+@inject IDialogService DialogSvc
 @using System.Globalization
 
-<MudThemeProvider Theme="_theme" IsDarkMode="_isDark" />
+<MudThemeProvider Theme="AppTheme.Theme" IsDarkMode="_isDark" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -23,16 +24,32 @@
         <img src="fintool_preview.png" alt="Family Finance logo" style="height:28px;width:28px;object-fit:contain;" />
         <MudText Typo="Typo.h6" Style="font-weight:700;letter-spacing:-0.3px;margin-left:8px">Family Finance</MudText>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+
+        <!-- Full prev/month/next picker — hidden on phones, where it crowds the logo onto two lines. -->
+        <MudHidden Breakpoint="Breakpoint.Xs">
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                           Color="Color.Inherit"
+                           OnClick="MonthSvc.PrevMonth" />
+            <MudText Style="min-width:130px;text-align:center;font-size:0.875rem;font-weight:500">
+                @MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)
+            </MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                           Color="Color.Inherit"
+                           Disabled="@(MonthSvc.Month >= MonthSvc.CurrentMonth)"
+                           OnClick="MonthSvc.NextMonth" />
+        </MudHidden>
+
+        <!-- Compact month label on phones — opens a dialog with the full picker. -->
+        <MudHidden Breakpoint="Breakpoint.Xs" Invert="true">
+            <MudButton Variant="Variant.Text"
                        Color="Color.Inherit"
-                       OnClick="MonthSvc.PrevMonth" />
-        <MudText Style="min-width:130px;text-align:center;font-size:0.875rem;font-weight:500">
-            @MonthSvc.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)
-        </MudText>
-        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
-                       Color="Color.Inherit"
-                       Disabled="@(MonthSvc.Month >= MonthSvc.CurrentMonth)"
-                       OnClick="MonthSvc.NextMonth" />
+                       OnClick="OpenMonthPickerAsync"
+                       StartIcon="@Icons.Material.Filled.CalendarMonth"
+                       Style="text-transform:none;font-size:0.8125rem;font-weight:500;min-width:0;padding:6px 10px">
+                @MonthSvc.Month.ToString("MMM yyyy", CultureInfo.InvariantCulture)
+            </MudButton>
+        </MudHidden>
+
         <MudTooltip Text="@(_isDark ? "Switch to light mode" : "Switch to dark mode")">
             <MudIconButton Icon="@(_isDark ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
                            Color="Color.Inherit"
@@ -113,71 +130,6 @@
     private bool   _isOwner      = false;
     private string _version      = "";
 
-    private readonly MudTheme _theme = new()
-    {
-        PaletteLight = new PaletteLight
-        {
-            Primary          = "#0a0a0a",
-            Secondary        = "#757575",
-            AppbarBackground = "#ffffff",
-            AppbarText       = "#0a0a0a",
-            Background       = "#f5f5f5",
-            Surface          = "#ffffff",
-            DrawerBackground = "#efefef",
-            DrawerText       = "#0a0a0a",
-            DrawerIcon       = "#0a0a0a",
-            TextPrimary      = "#0a0a0a",
-            TextSecondary    = "#5c5c5c",
-            Divider          = "#e0e0e0",
-            ActionDefault    = "#424242",
-            TableLines       = "#e0e0e0",
-            TableHover       = "#f5f5f5",
-        },
-        PaletteDark = new PaletteDark
-        {
-            Primary              = "#ffffff",
-            PrimaryContrastText  = "#0a0a0a",
-            Secondary            = "#9e9e9e",
-            AppbarBackground = "#0d0d0d",
-            AppbarText       = "#f0f0f0",
-            Background       = "#0d0d0d",
-            BackgroundGray   = "#111111",
-            Surface          = "#1a1a1a",
-            DrawerBackground = "#111111",
-            DrawerText       = "#f0f0f0",
-            DrawerIcon       = "#f0f0f0",
-            TextPrimary      = "#f0f0f0",
-            TextSecondary    = "#a0a0a0",
-            Divider          = "#2a2a2a",
-            ActionDefault    = "#909090",
-            TableLines       = "#2a2a2a",
-            TableHover       = "#1a1a1a",
-        },
-        Typography = new Typography
-        {
-            Default   = new Default   { FontFamily = ["Inter", "system-ui", "sans-serif"] },
-            H1        = new H1        { FontFamily = ["Playfair Display", "Georgia", "serif"], FontWeight = 700 },
-            H2        = new H2        { FontFamily = ["Playfair Display", "Georgia", "serif"], FontWeight = 700 },
-            H3        = new H3        { FontFamily = ["Playfair Display", "Georgia", "serif"], FontWeight = 600 },
-            H4        = new H4        { FontFamily = ["Playfair Display", "Georgia", "serif"], FontWeight = 600 },
-            H5        = new H5        { FontFamily = ["Playfair Display", "Georgia", "serif"], FontWeight = 600 },
-            H6        = new H6        { FontFamily = ["Inter", "system-ui", "sans-serif"],     FontWeight = 600 },
-            Subtitle1 = new Subtitle1 { FontFamily = ["Inter", "system-ui", "sans-serif"], FontWeight = 500 },
-            Subtitle2 = new Subtitle2 { FontFamily = ["Inter", "system-ui", "sans-serif"], FontWeight = 500 },
-            Button    = new MudBlazor.Button
-            {
-                FontFamily    = ["Inter", "system-ui", "sans-serif"],
-                FontWeight    = 500,
-                TextTransform = "none"
-            }
-        },
-        LayoutProperties = new LayoutProperties
-        {
-            DrawerWidthLeft     = "268px",
-            DefaultBorderRadius = "12px"
-        }
-    };
-
     private IDisposable? _locationChangingReg;
 
     protected override async Task OnInitializedAsync()
@@ -209,6 +161,12 @@
     }
 
     private void OnMonthChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task OpenMonthPickerAsync()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        await DialogSvc.ShowAsync<MonthPickerDialog>("Select Month", options);
+    }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {

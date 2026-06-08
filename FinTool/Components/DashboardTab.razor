@@ -239,7 +239,7 @@ else
 
         <!-- ── Expense category breakdown ─────────────────────────────── -->
         <MudText Typo="Typo.subtitle1" Class="mb-2">Expense Breakdown</MudText>
-        <MudTable T="CatRow" Items="_categoryRows" Dense="true" Hover="true" Elevation="1" Class="mb-6">
+        <MudTable T="CatRow" Items="_categoryRows" Dense="true" Hover="true" Elevation="1" Class="mb-6" Breakpoint="Breakpoint.Sm">
             <HeaderContent>
                 <MudTh>Category</MudTh>
                 <MudTh Style="text-align:right">Budget</MudTh>
@@ -264,29 +264,29 @@ else
                                  Style="cursor:pointer">@context.Name</MudLink>
                     </MudStack>
                 </MudTd>
-                <MudTd Style="text-align:right">@Fmt(context.Budget)</MudTd>
-                <MudTd Style="text-align:right">
+                <MudTd DataLabel="Budget" Style="text-align:right">@Fmt(context.Budget)</MudTd>
+                <MudTd DataLabel="Spent" Style="text-align:right">
                     <MudText Color="@(context.Spent > context.Budget && context.Budget > 0 ? Color.Error : Color.Default)">
                         @Fmt(context.Spent)
                     </MudText>
                 </MudTd>
-                <MudTd Style="text-align:right">
+                <MudTd DataLabel="Remaining" Style="text-align:right">
                     <MudText Color="@(rowRem >= 0 ? Color.Success : Color.Error)">
                         @(rowRem >= 0 ? Fmt(rowRem) : $"−{Fmt(-rowRem)}")
                     </MudText>
                 </MudTd>
-                <MudTd Style="text-align:right">
+                <MudTd DataLabel="Txns" Style="text-align:right">
                     <MudText Color="@(context.Count > 0 ? Color.Default : Color.Secondary)">
                         @context.Count
                     </MudText>
                 </MudTd>
-                <MudTd Style="text-align:right">
+                <MudTd DataLabel="Avg / Txn" Style="text-align:right">
                     @if (context.Count > 0)
                     {
                         @Fmt(context.Avg)
                     }
                 </MudTd>
-                <MudTd>
+                <MudTd DataLabel="Usage">
                     @if (context.Budget > 0)
                     {
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
@@ -304,7 +304,7 @@ else
         @if (_revenueRows.Count > 0)
         {
             <MudText Typo="Typo.subtitle1" Class="mb-2">Revenue Breakdown</MudText>
-            <MudTable T="RevRow" Items="_revenueRows" Dense="true" Hover="true" Elevation="1" Class="mb-6">
+            <MudTable T="RevRow" Items="_revenueRows" Dense="true" Hover="true" Elevation="1" Class="mb-6" Breakpoint="Breakpoint.Sm">
                 <HeaderContent>
                     <MudTh>Category</MudTh>
                     <MudTh Style="text-align:right">Amount</MudTh>
@@ -324,8 +324,8 @@ else
                     <MudTd DataLabel="Amount" Style="text-align:right">
                         <MudText Color="Color.Success">@Fmt(context.Amount)</MudText>
                     </MudTd>
-                    <MudTd Style="text-align:right">@context.Count</MudTd>
-                    <MudTd Style="text-align:right">
+                    <MudTd DataLabel="Txns" Style="text-align:right">@context.Count</MudTd>
+                    <MudTd DataLabel="Avg / Txn" Style="text-align:right">
                         @if (context.Count > 0)
                         {
                             <MudText Color="Color.Success">@Fmt(context.Avg)</MudText>
@@ -372,7 +372,7 @@ else
                 {
                     <MudDivider Class="my-2" />
                     <MudTable T="Transaction" Items="_ignoredTx" Dense="true" Hover="true"
-                              Elevation="0" Style="opacity:0.8">
+                              Elevation="0" Style="opacity:0.8" Breakpoint="Breakpoint.Sm">
                         <HeaderContent>
                             <MudTh>Date</MudTh>
                             <MudTh>Description</MudTh>
