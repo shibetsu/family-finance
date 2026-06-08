@@ -14,11 +14,13 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 - Token is stored in browser `sessionStorage` and sent as a Bearer header on every API request
 - All app pages carry `[Authorize]` — the Blazor router gate prevents any component from rendering (and making API calls) until the auth state is confirmed; unauthenticated visitors are redirected to `/login` with no flash and no 401 errors
 - App version is shown bottom-left on the login screen and above the username row in the nav drawer; sourced from `version.txt` at startup
+- Login screen shares the app's own theme (`AppTheme.cs` — dark palette, Playfair Display/Inter typography) instead of MudBlazor's default purple
 
 ### Global Month Picker
 - The month selector lives in the **top app bar** and is shared across all pages — changing it on one page changes it everywhere
 - Prev/next chevrons navigate month by month; the forward arrow is disabled on the current month
 - The selected month is reflected in the URL (`?month=yyyy-MM`) for deep linking and browser back/forward support
+- On phones, the inline prev/next controls are replaced by a compact button that opens `MonthPickerDialog` with the full picker — keeps the app bar logo from wrapping onto two lines
 
 ### Dashboard
 - **Summary cards** — monthly budget, total spent, remaining budget, transaction count, revenue, and net balance
@@ -26,6 +28,7 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 - **6-Month Trend** — line chart showing expenses and revenue over the last six months
 - **Expense & Revenue breakdowns** — per-category tables with budget progress bars, transaction counts, and per-transaction averages; category names are clickable and navigate to the Transactions page pre-filtered to that category and month
 - **Ignored transactions** — a collapsible panel lists transactions belonging to ignored categories for the selected month
+- **Responsive tables** — breakdown tables collapse into labeled stacked cards on phones (`Breakpoint.Sm`) instead of squeezing columns
 
 ### Transactions
 - **Import from AccèsD** — paste the transaction table from the AccèsD portal; the parser auto-detects the format (standard credit card, BONIDOLLARS credit card, or debit account)
@@ -37,6 +40,7 @@ Data is stored in a local **SQLite database** — no account, no cloud, no third
 - **Category & account filters** — funnel icons in column headers open checkbox popovers; active filters persist when navigating away and back
 - **Sort** — click Date, Category, or Amount column headers to sort
 - **Close Month** — lock a past month to prevent any further edits; locked months show a 🔒 icon and all dropdowns become read-only
+- **Responsive layout** — the table collapses into labeled stacked cards on phones (`Breakpoint.Sm`) instead of squeezing columns
 
 ### Recurring
 - Detects transactions that appear in two or more months (same description) and surfaces them as recurring items
@@ -355,6 +359,21 @@ echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.zshrc
 source ~/.zshrc
 ```
 Then restart the server so it inherits the updated PATH.
+
+### Remote Maintenance Scripts
+
+Two PowerShell scripts in `scripts/` help manage a remote deployment running under systemd. Both prompt for connection details on each run and save them to a `*.params.json` file at the repo root (gitignored) so subsequent runs just need Enter to confirm.
+
+```powershell
+# Push a published release to a remote machine: stop the service, extract the
+# archive over the install directory, and start it back up over a single SSH session
+.\scripts\deploy-remote.ps1
+
+# Pull a timestamped copy of the remote family-finance.db via SCP into ./db-backups/
+.\scripts\sync-db.ps1
+```
+
+`deploy-remote.ps1` only offers `.tar.gz` packages (systemd implies a Linux/macOS remote) and looks for archives produced by `.\scripts\publish.ps1` for the version you select.
 
 ---
 
