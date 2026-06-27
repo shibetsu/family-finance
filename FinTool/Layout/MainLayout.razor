@@ -73,10 +73,6 @@
             <MudNavLink Href="/recurring" Icon="@NavIcons.Recurring">Recurring</MudNavLink>
             <MudNavLink Href="/budget-planner" Icon="@NavIcons.Planner">Planner</MudNavLink>
             <MudNavLink Href="/goals" Icon="@NavIcons.Goals">Goals</MudNavLink>
-            @if (_isOwner)
-            {
-                <MudNavLink Href="/accounts" Icon="@NavIcons.Accounts">Accounts</MudNavLink>
-            }
             <MudNavGroup Title="Settings" Icon="@NavIcons.Settings" Expanded="@_settingsOpen" ExpandedChanged="@(v => _settingsOpen = v)">
                 @if (_isOwner)
                 {

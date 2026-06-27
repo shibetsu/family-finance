@@ -13,7 +13,6 @@ public static class NavIcons
     public static readonly string Recurring    = Box('R');
     public static readonly string Planner      = Box('P');
     public static readonly string Goals        = Box('G');
-    public static readonly string Accounts     = Box('A');
     public static readonly string Settings     = Box('S');
     public static readonly string Budget       = Box('B');
     public static readonly string General      = Box('G');

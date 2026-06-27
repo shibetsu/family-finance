@@ -9,7 +9,6 @@
 @inject RevenueCategoryService RevenueSvc
 @inject ClosedMonthService ClosedMonthSvc
 @inject MerchantCacheService CacheSvc
-@inject AccountService AccountSvc
 @inject GoalService GoalSvc
 @inject IDialogService DialogSvc
 @inject TransactionFilterState FilterState
@@ -132,43 +131,6 @@ else if (_confirmed.Count > 0)
                 <MudTh>Description</MudTh>
                 <MudTh>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
-                        Account
-                        @if (_accounts.Count > 0)
-                        {
-                            <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Dense>
-                                <ActivatorContent>
-                                    <MudIconButton Icon="@(_accountFilter.Count > 0 ? Icons.Material.Filled.FilterAlt : Icons.Material.Outlined.FilterAlt)"
-                                                   Size="Size.Small"
-                                                   Color="@(_accountFilter.Count > 0 ? Color.Primary : Color.Default)" />
-                                </ActivatorContent>
-                                <ChildContent>
-                                    <div style="padding:4px 12px 8px;min-width:170px">
-                                        @foreach (var acct in _accounts)
-                                        {
-                                            var a = acct;
-                                            <div>
-                                                <MudCheckBox T="bool"
-                                                             Value="@_accountFilter.Contains(a.Id)"
-                                                             ValueChanged="@(v => ToggleAccountFilter(a.Id, v))"
-                                                             Size="Size.Small" Dense Label="@a.Name" />
-                                            </div>
-                                        }
-                                        @if (_accountFilter.Count > 0)
-                                        {
-                                            <MudDivider Class="my-1" />
-                                            <MudButton Size="Size.Small" FullWidth
-                                                       OnClick="@(() => { _accountFilter.Clear(); ApplyFilter(); })">
-                                                Clear filter
-                                            </MudButton>
-                                        }
-                                    </div>
-                                </ChildContent>
-                            </MudMenu>
-                        }
-                    </MudStack>
-                </MudTh>
-                <MudTh>
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="0">
                         <MudTableSortLabel SortBy="new Func<Transaction, object>(t => t.Category ?? string.Empty)">
                             Category
                         </MudTableSortLabel>
@@ -226,19 +188,6 @@ else if (_confirmed.Count > 0)
                 </MudTd>
                 <MudTd DataLabel="Date">@context.Date.ToString("MMM d, yyyy")</MudTd>
                 <MudTd DataLabel="Description">@context.Description</MudTd>
-                <MudTd DataLabel="Account">
-                    <MudSelect T="string" Value="@(context.AccountId?.ToString() ?? "")"
-                               ValueChanged="@(async v => await UpdateAccountAsync(context, string.IsNullOrEmpty(v) ? null : Guid.Parse(v)))"
-                               Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                               Placeholder="—" Class="cat-select" Style="min-width:120px"
-                               Disabled="@(_isMonthClosed || _accounts.Count == 0)">
-                        <MudSelectItem T="string" Value="@("")">—</MudSelectItem>
-                        @foreach (var a in _accounts)
-                        {
-                            <MudSelectItem T="string" Value="@a.Id.ToString()">@a.Name</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudTd>
                 <MudTd DataLabel="Category">
                     @if (_isMonthClosed)
                     {

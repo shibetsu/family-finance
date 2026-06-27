@@ -30,7 +30,6 @@ static class TransactionEndpoints
             tx.Category    = updated.Category;
             tx.IsRevenue   = updated.IsRevenue;
             tx.IsConfirmed = updated.IsConfirmed;
-            tx.AccountId   = updated.AccountId;
             tx.GoalId      = updated.GoalId;
             await db.SaveChangesAsync();
             return Results.Ok();

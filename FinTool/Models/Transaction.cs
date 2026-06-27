@@ -10,6 +10,5 @@ public class Transaction
     public string? Category { get; set; }
     public bool  IsConfirmed { get; set; }
     public bool  IsRevenue   { get; set; }
-    public Guid? AccountId   { get; set; }
     public Guid? GoalId      { get; set; }
 }

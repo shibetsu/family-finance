@@ -9,16 +9,7 @@ class TxEntity
     public string? Category    { get; set; }
     public bool    IsConfirmed { get; set; }
     public bool    IsRevenue   { get; set; }
-    public Guid?   AccountId   { get; set; }
     public Guid?   GoalId      { get; set; }
-}
-
-class AccountEntity
-{
-    public Guid   Id    { get; set; } = Guid.NewGuid();
-    public string Name  { get; set; } = "";
-    public string Type  { get; set; } = "credit";
-    public string Color { get; set; } = "#594AE2";
 }
 
 class BudgetCategoryEntity

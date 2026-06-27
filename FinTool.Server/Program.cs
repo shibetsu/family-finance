@@ -96,15 +96,6 @@ using (var scope = app.Services.CreateScope())
             ExpensesJson TEXT NOT NULL DEFAULT '[]',
             RevenueJson  TEXT NOT NULL DEFAULT '[]'
         )");
-    db.Database.ExecuteSqlRaw(@"
-        CREATE TABLE IF NOT EXISTS Accounts (
-            Id    TEXT NOT NULL PRIMARY KEY,
-            Name  TEXT NOT NULL DEFAULT '',
-            Type  TEXT NOT NULL DEFAULT 'credit',
-            Color TEXT NOT NULL DEFAULT '#594AE2'
-        )");
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Transactions ADD COLUMN AccountId TEXT"); }
-    catch { /* column already exists */ }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Transactions ADD COLUMN GoalId TEXT"); }
     catch { /* column already exists */ }
     db.Database.ExecuteSqlRaw(@"

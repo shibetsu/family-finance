@@ -15,12 +15,9 @@ public partial class TransactionsTab
     private List<Transaction> _filtered  = [];
     private List<BudgetCategory>  _categories        = [];
     private List<RevenueCategory> _revenueCategories = [];
-    private List<Account>         _accounts          = [];
-    private Dictionary<Guid, Account> _accountMap    = [];
     private List<Goal>            _goals             = [];
     private Dictionary<Guid, Goal> _goalMap          = [];
     private HashSet<string> _categoryFilter  = [];
-    private HashSet<Guid>   _accountFilter   = [];
     private HashSet<string> _closedMonths    = [];
     private HashSet<Guid>   _selected        = [];
     private string          _searchTerm     = "";
@@ -63,8 +60,6 @@ public partial class TransactionsTab
             await Task.Delay(1);
             _categories        = await BudgetSvc.GetCategoriesAsync();
             _revenueCategories = await RevenueSvc.GetCategoriesAsync();
-            _accounts          = await AccountSvc.GetAllAsync();
-            _accountMap        = _accounts.ToDictionary(a => a.Id);
             _goals             = await GoalSvc.GetAllAsync();
             _goalMap           = _goals.ToDictionary(g => g.Id);
             _confirmed = (await TxSvc.GetAllAsync())
@@ -131,8 +126,6 @@ public partial class TransactionsTab
             .Where(t => t.Date.Year == MonthSvc.Month.Year && t.Date.Month == MonthSvc.Month.Month);
         if (_categoryFilter.Count > 0)
             q = q.Where(t => _categoryFilter.Contains(t.Category ?? "Unclassified"));
-        if (_accountFilter.Count > 0)
-            q = q.Where(t => t.AccountId.HasValue && _accountFilter.Contains(t.AccountId.Value));
         if (!string.IsNullOrWhiteSpace(_searchTerm))
         {
             var term = _searchTerm.Trim().ToLowerInvariant();
@@ -168,13 +161,6 @@ public partial class TransactionsTab
         if (selected) _categoryFilter.Add(name);
         else _categoryFilter.Remove(name);
         SaveState(); UpdateUrl(); ApplyFilter();
-    }
-
-    private void ToggleAccountFilter(Guid id, bool selected)
-    {
-        if (selected) _accountFilter.Add(id);
-        else _accountFilter.Remove(id);
-        ApplyFilter();
     }
 
     private async Task CloseMonthAsync()
@@ -244,13 +230,6 @@ public partial class TransactionsTab
         await TxSvc.DeleteAsync(tx.Id);
         _confirmed.RemoveAll(t => t.Id == tx.Id);
         ApplyFilter();
-    }
-
-    private async Task UpdateAccountAsync(Transaction tx, Guid? accountId)
-    {
-        if (_isMonthClosed) return;
-        tx.AccountId = accountId;
-        await TxSvc.UpdateAsync(tx);
     }
 
     private async Task UpdateGoalAsync(Transaction tx, Guid? goalId)

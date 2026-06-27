@@ -2,35 +2,6 @@ static class AccountEndpoints
 {
     public static void MapAccountEndpoints(this RouteGroupBuilder api)
     {
-        // Accounts (OwnerOnly)
-        api.MapGet("/api/accounts", async (AppDbContext db) =>
-            await db.Accounts.OrderBy(a => a.Name).ToListAsync())
-            .RequireAuthorization("OwnerOnly");
-
-        api.MapPost("/api/accounts", async (AccountEntity account, AppDbContext db) =>
-        {
-            var existing = await db.Accounts.FindAsync(account.Id);
-            if (existing is null)
-                db.Accounts.Add(account);
-            else
-            {
-                existing.Name  = account.Name;
-                existing.Type  = account.Type;
-                existing.Color = account.Color;
-            }
-            await db.SaveChangesAsync();
-            return Results.Ok();
-        }).RequireAuthorization("OwnerOnly");
-
-        api.MapDelete("/api/accounts/{id:guid}", async (Guid id, AppDbContext db) =>
-        {
-            var acct = await db.Accounts.FindAsync(id);
-            if (acct is null) return Results.NotFound();
-            db.Accounts.Remove(acct);
-            await db.SaveChangesAsync();
-            return Results.Ok();
-        }).RequireAuthorization("OwnerOnly");
-
         // Goals
         api.MapGet("/api/goals", async (AppDbContext db) =>
             await db.Goals.OrderBy(g => g.Name).ToListAsync());
